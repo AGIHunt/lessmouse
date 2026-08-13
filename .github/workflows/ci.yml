@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+jobs:
+  test:
+    name: Build & test
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: swift build
+
+      - name: Test
+        run: swift test
+
+  app:
+    name: Bundle LessMouse.app
+    runs-on: macos-15
+    # The .app artifact is only needed on tags and PRs that touch packaging;
+    # building it on every push would waste runner minutes for no reader.
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build release bundle
+        run: swift build -c release
+
+      - name: Assemble app
+        run: ./scripts/make-app.sh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: LessMouse-app
+          path: dist/LessMouse.zip

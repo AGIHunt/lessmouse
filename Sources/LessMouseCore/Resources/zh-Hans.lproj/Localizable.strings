@@ -1,0 +1,19 @@
+/* LessMouse — 简体中文 */
+
+"app.name" = "LessMouse";
+"common.back" = "返回";
+"common.refresh" = "刷新";
+"common.new" = "新";
+"common.adopted" = "已采纳";
+"common.knowIt" = "知道了";
+"common.neverAgain" = "不再提醒";
+"common.confirm" = "确认";
+"common.cancel" = "取消";
+
+"menu.stats" = "统计";
+"menu.settings" = "设置";
+"menu.quit" = "退出 LessMouse";
+
+"suggestion.title" = "快捷键";
+"stats.title" = "数据统计";
+"settings.title" = "设置";

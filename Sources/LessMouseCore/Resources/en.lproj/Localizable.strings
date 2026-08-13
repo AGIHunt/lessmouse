@@ -1,0 +1,19 @@
+/* LessMouse — English */
+
+"app.name" = "LessMouse";
+"common.back" = "Back";
+"common.refresh" = "Refresh";
+"common.new" = "New";
+"common.adopted" = "Adopted";
+"common.knowIt" = "Got it";
+"common.neverAgain" = "Don't remind me";
+"common.confirm" = "Confirm";
+"common.cancel" = "Cancel";
+
+"menu.stats" = "Stats";
+"menu.settings" = "Settings";
+"menu.quit" = "Quit LessMouse";
+
+"suggestion.title" = "Shortcut";
+"stats.title" = "Stats";
+"settings.title" = "Settings";

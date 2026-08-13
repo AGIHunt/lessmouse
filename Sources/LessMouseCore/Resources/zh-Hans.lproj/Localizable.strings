@@ -34,7 +34,7 @@
 "permission.onlyRecords" = "只记录这样的计数：";
 "permission.openSettings" = "打开系统设置";
 "permission.recheck" = "我已授权，重新检测";
-"permission.relaunchHint" = "如果授权后仍显示“需要权限”，请退出并重新打开 LessMouse。";
+"permission.relaunchHint" = "如果授权后仍显示“需要权限”，请退出并重新打开 LessMouse。若是重新下载或重新构建过的版本，请先在系统设置里移除旧的 LessMouse，再重新添加。";
 "permission.failedHint" = "键盘监听启动失败：%@";
 
 /* 规则 */

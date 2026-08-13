@@ -103,7 +103,12 @@ public final class KeyboardMonitor: KeyEventSource {
             self.stateLock.unlock()
         }
         thread.name = "lm.eventtap"
-        thread.stackSize = 16_384
+        // Do NOT shrink this thread's stack. The system's tap dispatch chain
+        // (SkyLight's eventTapMessageHandler and friends) runs on this stack
+        // and needs far more than a minimal callback would suggest — a 16 KB
+        // stack crashed with EXC_BAD_ACCESS "Thread stack size exceeded" on
+        // the very first event after permission was granted. The default
+        // half-megabyte is the only tested configuration.
         thread.start()
         self.thread = thread
 

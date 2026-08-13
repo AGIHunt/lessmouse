@@ -49,7 +49,7 @@ scripts/make-app.sh     # 构建、组装、ad-hoc 签名 → dist/LessMouse.zip
 
 解压后**右键 LessMouse.app → 打开**（首次要点两次）——这是 Gatekeeper 对诚实但未签名软件的标准流程。用得顺手就拖进 `/Applications`。
 
-**首次运行**：LessMouse 需要辅助功能权限（listen-only 键盘 tap 才能统计模式）。在系统设置里授权；如果授权后仍显示"需要权限"，退出重开一次——macOS 会按启动缓存 tap 的拒绝记录。
+**首次运行**：LessMouse 需要辅助功能权限（listen-only 键盘 tap 才能统计模式）。在系统设置里授权；如果授权后仍显示"需要权限"，退出重开一次——macOS 会按启动缓存 tap 的拒绝记录。**换了新构建版本后**权限可能不继承（未签名构建每次身份都会变）：到 系统设置 → 隐私与安全性 → 辅助功能，先移除旧的 LessMouse 再添加新的。
 
 ## 构建与开发
 

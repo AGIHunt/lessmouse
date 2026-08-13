@@ -69,7 +69,10 @@ Gatekeeper's standard dance for unsigned-but-honest software. Drag it into
 **First run:** LessMouse asks for Accessibility permission (it needs a
 listen-only keyboard tap to count patterns). Grant it in System Settings;
 if the app still says "needs permission" after granting, quit and reopen it —
-macOS caches tap refusals per launch.
+macOS caches tap refusals per launch. After installing a **new build**, the
+permission may not carry over (unsigned builds re-identify on every build):
+in System Settings → Privacy & Security → Accessibility, remove the old
+LessMouse entry and add the new one.
 
 ## Build & develop
 

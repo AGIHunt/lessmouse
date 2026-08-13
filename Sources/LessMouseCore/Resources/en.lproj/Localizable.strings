@@ -34,7 +34,7 @@
 "permission.onlyRecords" = "Only counts like:";
 "permission.openSettings" = "Open System Settings";
 "permission.recheck" = "I've granted it — recheck";
-"permission.relaunchHint" = "If it still says “needs permission” after granting, quit and reopen LessMouse.";
+"permission.relaunchHint" = "If it still says “needs permission” after granting, quit and reopen LessMouse. After re-downloading or rebuilding the app, remove the old LessMouse entry in System Settings first, then add it again.";
 "permission.failedHint" = "The event tap could not start: %@";
 
 /* Rules */

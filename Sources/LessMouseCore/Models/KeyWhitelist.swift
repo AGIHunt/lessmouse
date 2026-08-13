@@ -50,13 +50,14 @@ public enum KeyWhitelist {
         kVK_ANSI_9: "9", kVK_ANSI_0: "0",
     ]
 
-    private static let punctuation: [Int: String] = [
-        kVK_ANSI_Minus: "minus", kVK_ANSI_Equal: "equal",
-        kVK_ANSI_Comma: "comma", kVK_ANSI_Period: "period",
-        kVK_ANSI_Slash: "slash", kVK_ANSI_Backslash: "backslash",
-        kVK_ANSI_Semicolon: "semicolon", kVK_ANSI_Quote: "quote",
-        kVK_ANSI_LeftBracket: "bracketLeft", kVK_ANSI_RightBracket: "bracketRight",
-        kVK_ANSI_Grave: "grave",
+    /// Punctuation: storage token paired with its display glyph.
+    private static let punctuation: [Int: (token: String, symbol: String)] = [
+        kVK_ANSI_Minus: ("minus", "−"), kVK_ANSI_Equal: ("equal", "="),
+        kVK_ANSI_Comma: ("comma", ","), kVK_ANSI_Period: ("period", "."),
+        kVK_ANSI_Slash: ("slash", "/"), kVK_ANSI_Backslash: ("backslash", "\\"),
+        kVK_ANSI_Semicolon: ("semicolon", ";"), kVK_ANSI_Quote: ("quote", "'"),
+        kVK_ANSI_LeftBracket: ("bracketLeft", "["), kVK_ANSI_RightBracket: ("bracketRight", "]"),
+        kVK_ANSI_Grave: ("grave", "`"),
     ]
 
     private static let navigation: [Int: SafeKey] = [
@@ -96,8 +97,8 @@ public enum KeyWhitelist {
         for (code, digit) in digits {
             map[code] = SafeKey(token: digit, displaySymbol: digit)
         }
-        for (code, token) in punctuation {
-            map[code] = SafeKey(token: token, displaySymbol: token)
+        for (code, entry) in punctuation {
+            map[code] = SafeKey(token: entry.token, displaySymbol: entry.symbol)
         }
         return map
     }()
@@ -115,6 +116,16 @@ public enum KeyWhitelist {
     public static func namedKey(for keyCode: UInt16) -> SafeKey? {
         table[keyCode]
     }
+
+    /// token → display symbol, for turning stored signatures ("cmd+c") back
+    /// into glyphs ("⌘C") on the stats page.
+    public static let displayByToken: [String: String] = {
+        var map: [String: String] = [:]
+        for key in table.values {
+            map[key.token] = key.displaySymbol
+        }
+        return map
+    }()
 
     /// Opaque-but-honest fallback for a keycode outside the table (JIS yen,
     /// media keys…). Only ever reachable inside a ⌘/⌥/⌃ combination.

@@ -12,6 +12,7 @@ public enum RuleLibrary {
             bodyKey: "rule.deleteByWord.body",
             summaryKey: "rule.deleteByWord.summary",
             keyCaps: [[.modifier(.option), "⌫"], [.modifier(.command), "⌫"]],
+            symbol: "delete.left",
             cooldownDays: 3
         ),
         SuggestionRule(
@@ -23,6 +24,7 @@ public enum RuleLibrary {
             summaryKey: "rule.hopByWord.summary",
             keyCaps: [[.modifier(.option), "←"], [.modifier(.option), "→"],
                       [.modifier(.command), "←"], [.modifier(.command), "→"]],
+            symbol: "arrow.left.arrow.right",
             cooldownDays: 3
         ),
         SuggestionRule(
@@ -35,6 +37,7 @@ public enum RuleLibrary {
             keyCaps: [[.modifier(.shift), .modifier(.option), "←"],
                       [.modifier(.shift), .modifier(.option), "→"],
                       [.modifier(.shift), .modifier(.command), "→"]],
+            symbol: "textformat",
             cooldownDays: 4
         ),
         SuggestionRule(
@@ -45,6 +48,7 @@ public enum RuleLibrary {
             bodyKey: "rule.docStartEnd.body",
             summaryKey: "rule.docStartEnd.summary",
             keyCaps: [[.modifier(.command), "↑"], [.modifier(.command), "↓"]],
+            symbol: "arrow.up.arrow.down",
             cooldownDays: 5
         ),
         SuggestionRule(
@@ -55,6 +59,7 @@ public enum RuleLibrary {
             bodyKey: "rule.homeEndMac.body",
             summaryKey: "rule.homeEndMac.summary",
             keyCaps: [[.modifier(.command), "←"], [.modifier(.command), "→"]],
+            symbol: "arrow.right.to.line",
             cooldownDays: 5
         ),
         SuggestionRule(
@@ -65,6 +70,7 @@ public enum RuleLibrary {
             bodyKey: "rule.sameAppWindows.body",
             summaryKey: "rule.sameAppWindows.summary",
             keyCaps: [[.modifier(.command), "`"]],
+            symbol: "macwindow.on.rectangle",
             cooldownDays: 30
         ),
         SuggestionRule(
@@ -76,6 +82,7 @@ public enum RuleLibrary {
             summaryKey: "rule.emacsKeys.summary",
             keyCaps: [[.modifier(.control), "A"], [.modifier(.control), "E"],
                       [.modifier(.control), "N"], [.modifier(.control), "P"]],
+            symbol: "text.cursor",
             cooldownDays: 30
         ),
     ]

@@ -66,3 +66,42 @@
 "rule.emacsKeys.body" = "Every Mac text field understands Emacs: Control+A to line start, Control+E to line end, Control+P / Control+N up and down a line. They work where arrows are awkward, and they're older than every app you use.";
 "rule.emacsKeys.summary" = "%ld cursor moves today";
 
+/* Inbox / detail / celebration */
+"inbox.title" = "Suggestions";
+"inbox.unread" = "%ld new";
+"inbox.empty" = "Nothing yet — keep typing. LessMouse speaks up when a pattern is worth replacing.";
+"suggestion.alternatives" = "Also works";
+"suggestion.missing" = "This card is from an older version of LessMouse.";
+"celebration.title" = "Adopted %@!";
+
+/* Stats */
+"stats.topCombos" = "Most used";
+"stats.topCombos.range" = "last 7 days";
+"stats.empty" = "No data yet.";
+"stats.progress" = "Coached shortcuts";
+"stats.adopted" = "%ld of %ld adopted";
+"stats.adopted.hint" = "Shortcuts you started using after LessMouse suggested them";
+"stats.daysObserved" = "%ld days observed";
+"stats.daysObserved.hint" = "Days with any recorded activity";
+"stats.revealData" = "Show raw data";
+
+/* Settings */
+"settings.tracking" = "Tracking";
+"settings.pauseTracking" = "Pause tracking";
+"settings.pauseTracking.hint" = "Stops the keyboard listener completely — nothing is watched at all.";
+"settings.startup" = "Startup";
+"settings.launchAtLogin" = "Launch at login";
+"settings.launchAtLogin.hint" = "Live in the menu bar from the moment you log in.";
+"settings.launchAtLogin.unavailable" = "Only available when running from LessMouse.app (not swift run).";
+"settings.exclusions" = "Excluded apps";
+"settings.exclusions.empty" = "Nothing excluded. Add apps whose keystrokes should never be counted — password managers are a good start.";
+"settings.language" = "Language";
+"settings.language.system" = "System";
+"settings.data" = "Data";
+"settings.dataLocation" = "Storage";
+"settings.eraseAll" = "Erase all data";
+"settings.eraseAll.hint" = "Archives the current files, then starts empty.";
+"settings.eraseAll.confirm" = "Tap confirm to erase everything. The old file is archived on disk.";
+"settings.privacyNote" = "All data stays on this Mac. LessMouse has no network code at all — the repo is the proof.";
+
+

@@ -24,6 +24,8 @@ public struct SuggestionRule: Identifiable {
     public let summaryKey: String
     /// Alternative shortcuts to teach, each an ordered cap list.
     public let keyCaps: [[KeyCap]]
+    /// SF Symbol for the card's glyph wherever it appears.
+    public let symbol: String
     /// Read-but-not-adopted cards wait this many days before nagging again.
     public let cooldownDays: Int
 
@@ -34,6 +36,7 @@ public struct SuggestionRule: Identifiable {
                 bodyKey: String,
                 summaryKey: String,
                 keyCaps: [[KeyCap]],
+                symbol: String,
                 cooldownDays: Int) {
         self.id = id
         self.trigger = trigger
@@ -42,7 +45,14 @@ public struct SuggestionRule: Identifiable {
         self.bodyKey = bodyKey
         self.summaryKey = summaryKey
         self.keyCaps = keyCaps
+        self.symbol = symbol
         self.cooldownDays = cooldownDays
+    }
+
+    /// "⌥⌫" — the first taught shortcut, for compact references like the
+    /// celebration banner.
+    public var primaryShortcutLabel: String {
+        keyCaps.first.map { $0.map(\.label).joined() } ?? ""
     }
 }
 

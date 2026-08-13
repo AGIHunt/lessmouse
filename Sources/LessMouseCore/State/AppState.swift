@@ -303,6 +303,19 @@ public final class AppState: ObservableObject {
         celebration = nil
     }
 
+    /// Settings' erase button: wipe the store and every derived piece of UI
+    /// state, so the panel never shows numbers the disk no longer has.
+    public func eraseAllData() {
+        store.eraseAll()
+        store.flush()
+        suggestionStates = [:]
+        todayComboCounts = [:]
+        detector.resetAll()
+        celebration = nil
+        refreshToday()
+        refreshUnreadCount()
+    }
+
     // MARK: - Popover hooks
 
     public func popoverDidOpen() {

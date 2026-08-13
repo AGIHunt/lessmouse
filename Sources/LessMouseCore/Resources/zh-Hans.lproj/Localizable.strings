@@ -66,3 +66,42 @@
 "rule.emacsKeys.body" = "Mac 的每一个文本输入框都认识 Emacs：Control+A 到行首，Control+E 到行尾，Control+P / Control+N 上下移动一行。它们在你够不着方向键的地方依然好用。";
 "rule.emacsKeys.summary" = "今日 %ld 次光标移动";
 
+/* 收件箱 / 详情 / 庆祝 */
+"inbox.title" = "建议";
+"inbox.unread" = "%ld 条新";
+"inbox.empty" = "还没有建议——继续用就好。当某个模式值得替换时，LessMouse 会开口。";
+"suggestion.alternatives" = "也可以";
+"suggestion.missing" = "这张卡片来自旧版本的 LessMouse。";
+"celebration.title" = "已采纳 %@！";
+
+/* 统计 */
+"stats.topCombos" = "最常用";
+"stats.topCombos.range" = "近 7 天";
+"stats.empty" = "还没有数据。";
+"stats.progress" = "学到的快捷键";
+"stats.adopted" = "已采纳 %ld / %ld";
+"stats.adopted.hint" = "在 LessMouse 建议之后开始使用的快捷键";
+"stats.daysObserved" = "已记录 %ld 天";
+"stats.daysObserved.hint" = "有任意记录活动的天数";
+"stats.revealData" = "查看原始数据";
+
+/* 设置 */
+"settings.tracking" = "追踪";
+"settings.pauseTracking" = "暂停追踪";
+"settings.pauseTracking.hint" = "彻底停止键盘监听——连观察都不观察。";
+"settings.startup" = "启动";
+"settings.launchAtLogin" = "登录时启动";
+"settings.launchAtLogin.hint" = "登录后即驻留菜单栏。";
+"settings.launchAtLogin.unavailable" = "仅在使用 LessMouse.app 运行时可用（swift run 不行）。";
+"settings.exclusions" = "排除应用";
+"settings.exclusions.empty" = "尚未排除任何应用。可以让某些应用的按键永远不被统计——密码管理器是个好起点。";
+"settings.language" = "语言";
+"settings.language.system" = "跟随系统";
+"settings.data" = "数据";
+"settings.dataLocation" = "存储位置";
+"settings.eraseAll" = "清除全部数据";
+"settings.eraseAll.hint" = "归档当前文件后从零开始。";
+"settings.eraseAll.confirm" = "再次点击确认清除。旧文件会保留在磁盘上。";
+"settings.privacyNote" = "所有数据只留在这台 Mac 上。LessMouse 没有任何网络代码——仓库本身就是证明。";
+
+

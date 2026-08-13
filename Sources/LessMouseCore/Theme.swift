@@ -573,3 +573,17 @@ public struct QuietButtonStyle: ButtonStyle {
             .contentShape(Rectangle())
     }
 }
+
+/// Type eraser for picking a button style at runtime ("selected vs not")
+/// without if/else-ing the whole view.
+public struct AnyButtonStyle: ButtonStyle {
+    private let base: any ButtonStyle
+
+    public init(_ base: any ButtonStyle) {
+        self.base = base
+    }
+
+    public func makeBody(configuration: Configuration) -> some View {
+        AnyView(base.makeBody(configuration: configuration))
+    }
+}

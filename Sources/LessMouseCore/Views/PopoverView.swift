@@ -35,8 +35,7 @@ public struct PopoverView: View {
     @ViewBuilder
     private var sections: some View {
         VStack(alignment: .leading, spacing: Metrics.moduleGap) {
-            MainView(openSuggestion: { route = .suggestion($0) },
-                     openStats: { route = .stats })
+            MainView(openSuggestion: { route = .suggestion($0) })
         }
         .padding(.horizontal, Metrics.gutter)
         .padding(.top, 4)

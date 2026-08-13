@@ -18,6 +18,10 @@ func color(_ hex: UInt32, _ alpha: CGFloat = 1) -> CGColor {
             blue: CGFloat(hex & 0xFF) / 255, alpha: alpha)
 }
 
+/// `at` is the desired CENTER of the glyph's optical bounds — the only
+/// centering that actually centers (minX/minY are nonzero for most glyphs,
+/// so placing the cursor at "center minus hand-fudged offsets" lands visibly
+/// off, which is exactly the bug this replaced).
 func drawGlyph(_ string: String, font: String, size: CGFloat,
                at position: CGPoint, color: CGColor) {
     let attributed = CFAttributedStringCreateMutable(nil, 0)!
@@ -28,8 +32,9 @@ func drawGlyph(_ string: String, font: String, size: CGFloat,
     CFAttributedStringSetAttribute(attributed, range, kCTForegroundColorAttributeName, color)
     let line = CTLineCreateWithAttributedString(attributed)
     let bounds = CTLineGetBoundsWithOptions(line, .useOpticalBounds)
-    context.textPosition = CGPoint(x: position.x - bounds.minX,
-                                   y: position.y - bounds.minY)
+    context.textPosition = CGPoint(
+        x: position.x - bounds.width / 2 - bounds.minX,
+        y: position.y - bounds.height / 2 - bounds.minY)
     CTLineDraw(line, context)
 }
 
@@ -49,9 +54,9 @@ context.addPath(CGPath(roundedRect: cap, cornerWidth: 120 * unit, cornerHeight: 
 context.setFillColor(color(0x0B0F0C))
 context.fillPath()
 
-// ⌘ centered in the cap, white.
+// ⌘ truly centered in the cap, white.
 drawGlyph("\u{2318}", font: "HelveticaNeue", size: 240 * unit,
-          at: CGPoint(x: cap.midX - 100, y: cap.midY - 60),
+          at: CGPoint(x: cap.midX, y: cap.midY),
           color: color(0xFFFFFF))
 
 // The green: exactly one dot, top-right of the cap.

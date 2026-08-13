@@ -117,9 +117,11 @@ func drawAppIcon(into context: CGContext, size: CGFloat) {
                                     color(0xFFFFFF))
     let line = CTLineCreateWithAttributedString(attributed)
     let bounds = CTLineGetBoundsWithOptions(line, .useOpticalBounds)
+    // Optical-bounds centering, minX/minY included — halving alone leaves
+    // the glyph offset by whatever its origin insets are.
     context.textPosition = CGPoint(
-        x: cap.midX - bounds.width / 2,
-        y: cap.midY - bounds.height / 2)
+        x: cap.midX - bounds.width / 2 - bounds.minX,
+        y: cap.midY - bounds.height / 2 - bounds.minY)
     CTLineDraw(line, context)
 
     // The green: exactly one dot, exactly where the accent always lives.

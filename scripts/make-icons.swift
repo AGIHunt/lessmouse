@@ -40,21 +40,29 @@ func makeContext(pixels: Int) -> CGContext {
 
 // MARK: - Menu bar mark (alpha-only template)
 
-/// The keycap-with-dot mark at 18pt, drawn at `scale` into a square context.
-/// Alpha only: fill/stroke colors are irrelevant, the shape is the icon.
+/// The ⌘ mark at 18pt. The first design was a keycap outline with a small
+/// notification dot — at menu bar size the outline read as an empty box, so
+/// the mark is now the command glyph itself, matching the app icon. (The
+/// unread dot is a SwiftUI overlay in App.swift, not part of this art.)
+///
+/// Alpha only: the fill color is irrelevant, the glyph shape is the icon.
 func drawMenuBarMark(into context: CGContext, scale: CGFloat) {
-    context.scaleBy(x: scale, y: scale)
+    // 14.5pt of glyph inside the 18pt slot: the optical size SF Symbols
+    // occupy next door. Bigger than that and ⌘ crowds the neighbours.
+    let attributed = CFAttributedStringCreateMutable(nil, 0)!
+    CFAttributedStringReplaceString(attributed, CFRange(location: 0, length: 0), "\u{2318}" as CFString)
+    let range = CFRange(location: 0, length: CFAttributedStringGetLength(attributed))
+    CFAttributedStringSetAttribute(attributed, range, kCTFontAttributeName,
+                                    CTFontCreateWithName("HelveticaNeue" as CFString, 14.5 * scale, nil))
+    CFAttributedStringSetAttribute(attributed, range, kCTForegroundColorAttributeName,
+                                    CGColor(gray: 1, alpha: 1))
+    let line = CTLineCreateWithAttributedString(attributed)
 
-    let cap = CGRect(x: 3, y: 4.5, width: 12, height: 10.5)
-    let path = CGPath(roundedRect: cap, cornerWidth: 2.5, cornerHeight: 2.5, transform: nil)
-    context.addPath(path)
-    context.setStrokeColor(CGColor(gray: 1, alpha: 1))
-    context.setLineWidth(1.5)
-    context.setLineJoin(.round)
-    context.strokePath()
-
-    let dot = CGRect(x: 12.9 - 1.8, y: 11.4 - 1.8, width: 3.6, height: 3.6)
-    context.fillEllipse(in: dot)
+    let bounds = CTLineGetBoundsWithOptions(line, .useOpticalBounds)
+    context.textPosition = CGPoint(
+        x: (18 * scale - bounds.width) / 2 - bounds.minX,
+        y: (18 * scale - bounds.height) / 2 - bounds.minY)
+    CTLineDraw(line, context)
 }
 
 func menuBarIconPNG() throws -> Data {

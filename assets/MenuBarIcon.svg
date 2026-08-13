@@ -10,6 +10,6 @@
        bar. Pixels are derived by scripts/make-icons.swift (CoreText,
        HelveticaNeue at 14.5pt in the 18pt slot); this SVG is the human
        reference, the script is authoritative. -->
-  <text x="9" y="9" font-family="Helvetica Neue" font-size="14.5"
+  <text x="9" y="9" font-family="Helvetica Neue" font-size="16" font-weight="bold"
         fill="#000" text-anchor="middle" dominant-baseline="central">&#8984;</text>
 </svg>

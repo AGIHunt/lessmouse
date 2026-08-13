@@ -47,13 +47,14 @@ func makeContext(pixels: Int) -> CGContext {
 ///
 /// Alpha only: the fill color is irrelevant, the glyph shape is the icon.
 func drawMenuBarMark(into context: CGContext, scale: CGFloat) {
-    // 14.5pt of glyph inside the 18pt slot: the optical size SF Symbols
-    // occupy next door. Bigger than that and ⌘ crowds the neighbours.
+    // Bold at 16pt in the 18pt slot. Regular weight at 14.5pt read as a
+    // thin line next to the blocky icons it sits beside — menu bar neighbours
+    // are mostly solid fills, so the mark earns its place with weight.
     let attributed = CFAttributedStringCreateMutable(nil, 0)!
     CFAttributedStringReplaceString(attributed, CFRange(location: 0, length: 0), "\u{2318}" as CFString)
     let range = CFRange(location: 0, length: CFAttributedStringGetLength(attributed))
     CFAttributedStringSetAttribute(attributed, range, kCTFontAttributeName,
-                                    CTFontCreateWithName("HelveticaNeue" as CFString, 14.5 * scale, nil))
+                                    CTFontCreateWithName("HelveticaNeue-Bold" as CFString, 16 * scale, nil))
     CFAttributedStringSetAttribute(attributed, range, kCTForegroundColorAttributeName,
                                     CGColor(gray: 1, alpha: 1))
     let line = CTLineCreateWithAttributedString(attributed)

@@ -50,13 +50,18 @@ struct StatsStoreTests {
         #expect(snapshot.totalEvents == 3)
     }
 
-    @Test func roundtripPersistsAcrossInstances() {
+    @Test func roundtripPersistsAcrossInstances() throws {
         let directory = tempDirectory()
         let clock = Clock(Date(timeIntervalSince1970: 1_800_000_000))
 
         let first = makeStore(directory: directory, clock: clock)
         first.incrementCombo("opt+backspace", app: "com.apple.Safari")
         first.flush()
+
+        // If the write silently failed, say so here rather than as a
+        // confusing "second store read zero" two lines down.
+        let files = try FileManager.default.contentsOfDirectory(atPath: directory.path)
+        #expect(files.contains("stats.json"), "flush() did not write stats.json: \(files)")
 
         let second = makeStore(directory: directory, clock: clock)
         #expect(second.comboCount("opt+backspace") == 1)
@@ -138,6 +143,8 @@ struct StatsStoreTests {
         store.incrementCombo("cmd+c", app: nil)
         store.flush()
         #expect(store.comboCount("cmd+c") == 1)
+        #expect(FileManager.default.fileExists(atPath: store.storageURL.path),
+                "flush() did not write stats.json before eraseAll")
 
         store.eraseAll()
         #expect(store.comboCount("cmd+c") == 0)

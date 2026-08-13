@@ -67,8 +67,18 @@ struct AppStateTests {
         KeyEvent(timestamp: t, keyCode: 0x33, modifiers: [], application: app)
     }
 
-    private func waitOneTick() async {
-        try? await Task.sleep(for: .milliseconds(80))
+    /// Polls until `condition` holds, up to 2s. Fixed sleeps made these
+    /// tests flaky when a parallel suite's snapshot rendering occupied the
+    /// main actor past the sleep window — a condition wait cannot.
+    private func waitUntil(
+        _ condition: @autoclosure @MainActor () -> Bool,
+        timeout: TimeInterval = 2
+    ) async {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if condition() { return }
+            try? await Task.sleep(for: .milliseconds(25))
+        }
     }
 
     // MARK: - Pipeline
@@ -82,7 +92,7 @@ struct AppStateTests {
         state.ingest(backspace(at: 1))
         state.ingest(backspace(at: 2))
         state.ingest(backspace(at: 3))
-        await waitOneTick()
+        await waitUntil(state.today.totalEvents == 3)
 
         #expect(state.today.totalEvents == 3)
         #expect(state.today.combos["backspace"] == 3)
@@ -92,16 +102,16 @@ struct AppStateTests {
         let (state, monitor, _) = makeState()
 
         state.settings.isPaused = true
-        await waitOneTick()
+        await waitUntil(monitor.stopCount == 1)
         #expect(monitor.stopCount == 1)
         #expect(state.isTracking == false)
 
         state.ingest(backspace(at: 1))
-        await waitOneTick()
+        await waitUntil(monitor.stopCount == 1)  // settle before asserting
         #expect(state.today.totalEvents == 0)
 
         state.settings.isPaused = false
-        await waitOneTick()
+        await waitUntil(monitor.startCount == 2)
         #expect(monitor.startCount == 2)
         #expect(state.isTracking)
     }
@@ -112,7 +122,7 @@ struct AppStateTests {
 
         state.ingest(backspace(at: 1, app: "com.apple.Terminal"))
         state.ingest(backspace(at: 2, app: "com.apple.Safari"))
-        await waitOneTick()
+        await waitUntil(state.today.totalEvents == 1)
 
         #expect(state.today.totalEvents == 1)
     }
@@ -124,7 +134,7 @@ struct AppStateTests {
         state.ingest(KeyEvent(timestamp: 1, keyCode: 0x0E, modifiers: [], application: nil))
         state.ingest(KeyEvent(timestamp: 2, keyCode: 0x0E, modifiers: .shift, application: nil))
         state.ingest(KeyEvent(timestamp: 3, keyCode: 0x08, modifiers: .command, application: nil))
-        await waitOneTick()
+        await waitUntil(state.today.totalEvents == 1)
 
         #expect(state.today.totalEvents == 1)
         #expect(state.today.combos["cmd+c"] == 1)
@@ -173,7 +183,7 @@ struct AppStateTests {
             for j in 0..<5 {
                 state.ingest(backspace(at: Double(i) * 10 + Double(j) * 0.2))
             }
-            await waitOneTick()
+            await waitUntil(state.today.totalPatterns >= (i + 1))
         }
 
         #expect(state.today.totalPatterns >= 3)
@@ -187,13 +197,14 @@ struct AppStateTests {
             for j in 0..<5 {
                 state.ingest(backspace(at: Double(i) * 10 + Double(j) * 0.2))
             }
-            await waitOneTick()
+            await waitUntil(state.today.totalPatterns >= (i + 1))
         }
     }
 
     @Test func usingTheCoachedShortcutCelebratesOnce() async {
         let (state, _, _) = makeState()
         await triggerDeleteByWordCard(state)
+        await waitUntil(state.unreadCount == 1)
         #expect(state.unreadCount == 1)
 
         state.markRead("delete-by-word")
@@ -214,7 +225,7 @@ struct AppStateTests {
     @Test func dismissSilencesACardForGood() async {
         let (state, _, _) = makeState()
         await triggerDeleteByWordCard(state)
-        #expect(state.unreadCount == 1)
+        await waitUntil(state.unreadCount == 1)
 
         state.dismiss("delete-by-word")
         #expect(state.unreadCount == 0)
@@ -225,7 +236,7 @@ struct AppStateTests {
                 state.ingest(backspace(at: 100 + Double(i) * 10 + Double(j) * 0.2))
             }
         }
-        await waitOneTick()
+        await waitUntil(state.today.totalPatterns >= 8)
         #expect(state.unreadCount == 0)
         #expect(state.suggestionStates["delete-by-word"]?.status == .dismissed)
     }

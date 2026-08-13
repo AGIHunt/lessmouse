@@ -12,19 +12,14 @@ import Carbon.HIToolbox.Events
 /// import, so the privacy regression tests exercise exactly the production
 /// code path and nothing incidental.
 public enum CGEventNormalizer {
-    /// Convert a raw event, or nil if it must not become a KeyEvent at all.
+    /// Convert a raw event, or nil if it cannot become a KeyEvent.
     ///
-    /// Nil for: secure input active (a password field has focus — the system
-    /// already filters tapped events there, this is the second lock on the
-    /// door), and events carrying no keycode we can name.
+    /// Deterministic by design: everything environment-dependent (secure
+    /// input, permissions) is checked by the monitor at the call site, so
+    /// this conversion is testable on any machine in any state.
     public static func keyEvent(from event: CGEvent,
                                 timestamp: TimeInterval,
                                 application: String?) -> KeyEvent? {
-        // A password sheet sets secure input process-wide; while it is up,
-        // LessMouse observes nothing at all rather than "everything except
-        // the characters".
-        if IsSecureEventInputEnabled() { return nil }
-
         guard event.type == .keyDown else { return nil }
 
         // Keep only the four meaning-bearing modifiers; alphaShift (caps lock

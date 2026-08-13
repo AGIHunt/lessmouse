@@ -1,5 +1,6 @@
 import Foundation
 import CoreGraphics
+import Carbon.HIToolbox.Events
 
 /// Listen-only event tap wrapped in its own thread.
 ///
@@ -148,6 +149,12 @@ public final class KeyboardMonitor: KeyEventSource {
         }
 
         guard type == .keyDown,
+              // A password sheet sets secure input system-wide; while it is
+              // up, LessMouse observes nothing at all rather than
+              // "everything except the characters". Checked here rather
+              // than inside the normalizer so the conversion stays pure and
+              // the tests stay deterministic on any machine.
+              !IsSecureEventInputEnabled(),
               let keyEvent = CGEventNormalizer.keyEvent(
                 from: event,
                 timestamp: KeyboardMonitor.monotonicNow(),

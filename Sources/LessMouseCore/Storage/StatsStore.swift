@@ -14,6 +14,7 @@ public final class StatsStore {
     private let now: () -> Date
 
     private var root = StatsRoot()
+    private var suggestionStates: [String: SuggestionState] = [:]
     private var dirty = false
     private var lastFlush: Date?
 
@@ -39,21 +40,35 @@ public final class StatsStore {
     }
 
     public var storageURL: URL { directory.appendingPathComponent("stats.json") }
+    public var suggestionsURL: URL { directory.appendingPathComponent("suggestions.json") }
 
     // MARK: - Loading / recovery
 
     private func load() {
-        guard let data = try? Data(contentsOf: storageURL) else { return }
-        do {
-            root = try JSONDecoder().decode(StatsRoot.self, from: data)
-        } catch {
-            // A corrupt file must never take the app down with it — archive
-            // the evidence for the user to inspect and start over empty.
-            let archive = directory.appendingPathComponent(
-                "stats.corrupt-\(Int(now().timeIntervalSince1970)).json")
-            try? FileManager.default.moveItem(at: storageURL, to: archive)
-            root = StatsRoot()
+        if let data = try? Data(contentsOf: storageURL) {
+            do {
+                root = try JSONDecoder().decode(StatsRoot.self, from: data)
+            } catch {
+                // A corrupt file must never take the app down with it —
+                // archive the evidence and start over empty.
+                archive(storageURL, prefix: "stats.corrupt")
+                root = StatsRoot()
+            }
         }
+        if let data = try? Data(contentsOf: suggestionsURL) {
+            do {
+                suggestionStates = try JSONDecoder().decode([String: SuggestionState].self, from: data)
+            } catch {
+                archive(suggestionsURL, prefix: "suggestions.corrupt")
+                suggestionStates = [:]
+            }
+        }
+    }
+
+    private func archive(_ url: URL, prefix: String) {
+        let target = directory.appendingPathComponent(
+            "\(prefix)-\(Int(now().timeIntervalSince1970)).json")
+        try? FileManager.default.moveItem(at: url, to: target)
     }
 
     // MARK: - Writes
@@ -210,13 +225,31 @@ public final class StatsStore {
     /// reversible for a few seconds of regret, then the store starts clean.
     public func eraseAll() {
         queue.sync { [self] in
-            let archive = directory.appendingPathComponent(
-                "stats.erased-\(Int(now().timeIntervalSince1970)).json")
-            try? FileManager.default.moveItem(at: storageURL, to: archive)
+            archive(storageURL, prefix: "stats.erased")
+            archive(suggestionsURL, prefix: "suggestions.erased")
             root = StatsRoot()
+            suggestionStates = [:]
             dirty = false
             lastFlush = nil
         }
+    }
+
+    // MARK: - Suggestion states (suggestions.json)
+
+    /// Coaching states, loaded once at init. Small file, written eagerly —
+    /// a lost card state is a re-nag the user already acted on.
+    public func loadSuggestionStates() -> [String: SuggestionState] {
+        queue.sync { [self] in suggestionStates }
+    }
+
+    public func saveSuggestionStates(_ states: [String: SuggestionState]) {
+        let data = queue.sync { () -> Data? in
+            suggestionStates = states
+            return try? Self.encoder.encode(states)
+        }
+        guard let data else { return }
+        try? data.write(to: suggestionsURL,
+                        options: [.atomic, .completeFileProtection])
     }
 
     /// "2026-08-13" — local calendar, POSIX formatter so the key never varies

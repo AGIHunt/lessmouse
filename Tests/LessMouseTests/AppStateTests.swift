@@ -163,4 +163,70 @@ struct AppStateTests {
         #expect(permission.promptCount == 1)
         #expect(permission.settingsOpened == 1)
     }
+
+    // MARK: - End to end: burst → card → adoption
+
+    @Test func fiveBackspacesProduceAnUnreadCard() async {
+        let (state, _, _) = makeState()
+        for i in 0..<3 {
+            // Three separate bursts of five, each well inside its own window.
+            for j in 0..<5 {
+                state.ingest(backspace(at: Double(i) * 10 + Double(j) * 0.2))
+            }
+            await waitOneTick()
+        }
+
+        #expect(state.today.totalPatterns >= 3)
+        #expect(state.unreadCount == 1)
+        #expect(state.suggestionStates["delete-by-word"]?.status == .unread)
+    }
+
+    /// Three bursts of five — enough to cross the rule's 3-bursts-a-day line.
+    private func triggerDeleteByWordCard(_ state: AppState) async {
+        for i in 0..<3 {
+            for j in 0..<5 {
+                state.ingest(backspace(at: Double(i) * 10 + Double(j) * 0.2))
+            }
+            await waitOneTick()
+        }
+    }
+
+    @Test func usingTheCoachedShortcutCelebratesOnce() async {
+        let (state, _, _) = makeState()
+        await triggerDeleteByWordCard(state)
+        #expect(state.unreadCount == 1)
+
+        state.markRead("delete-by-word")
+
+        // The user takes the coaching: ⌥⌫ (0x33 with ⌥ held).
+        state.ingest(KeyEvent(timestamp: 10, keyCode: 0x33, modifiers: .option,
+                              application: "com.apple.Terminal"))
+        #expect(state.celebration == "delete-by-word")
+        #expect(state.suggestionStates["delete-by-word"]?.status == .adopted)
+
+        // Second use is just good habits — no second party.
+        state.dismissCelebration()
+        state.ingest(KeyEvent(timestamp: 11, keyCode: 0x33, modifiers: .option,
+                              application: "com.apple.Terminal"))
+        #expect(state.celebration == nil)
+    }
+
+    @Test func dismissSilencesACardForGood() async {
+        let (state, _, _) = makeState()
+        await triggerDeleteByWordCard(state)
+        #expect(state.unreadCount == 1)
+
+        state.dismiss("delete-by-word")
+        #expect(state.unreadCount == 0)
+
+        // More bursts the same day: the card stays down.
+        for i in 0..<5 {
+            for j in 0..<5 {
+                state.ingest(backspace(at: 100 + Double(i) * 10 + Double(j) * 0.2))
+            }
+        }
+        await waitOneTick()
+        #expect(state.unreadCount == 0)
+        #expect(state.suggestionStates["delete-by-word"]?.status == .dismissed)
+    }
 }

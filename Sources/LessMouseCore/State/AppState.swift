@@ -2,9 +2,10 @@ import Foundation
 import SwiftUI
 import Combine
 
-/// Where the pipeline meets the UI. The monitor's events arrive here, get
-/// filtered and counted, and whatever the popover needs to show is published
-/// from here — one @MainActor object, no other shared state.
+/// Where the pipeline meets the UI. Keystrokes arrive here, get filtered,
+/// counted, pattern-matched and coached; whatever the popover and the menu
+/// bar need to show is published from here — one @MainActor object, no other
+/// shared state.
 @MainActor
 public final class AppState: ObservableObject {
     // Inputs (injectable for tests).
@@ -12,13 +13,16 @@ public final class AppState: ObservableObject {
     public let settings: SettingsStore
     private let monitor: KeyEventSource
     private let permission: PermissionChecking
+    private let detector: PatternDetector
+    private let engine: SuggestionEngine
 
     // Published UI state.
     @Published public private(set) var permissionPhase: PermissionPhase = .needsPermission
     @Published public private(set) var isTracking = false
     @Published public private(set) var today = DaySnapshot(dayKey: "", combos: [:], patterns: [:])
+    @Published public private(set) var suggestionStates: [String: SuggestionState] = [:]
     @Published public private(set) var unreadCount = 0
-    /// Placeholder type until the suggestion model exists.
+    /// Rule id of a just-adopted shortcut, for the celebration banner.
     @Published public private(set) var celebration: String?
 
     public var language: String? { Loc.language }
@@ -28,6 +32,9 @@ public final class AppState: ObservableObject {
     private var permissionPoller: Timer?
     private var publishScheduled = false
     private var lastDayKey = ""
+    /// Today's counts, kept incrementally for the event-driven adoption path
+    /// (the store is authoritative for everything else).
+    private var todayComboCounts: [String: Int] = [:]
     /// Publish debounce; 1s in production, ~0 in tests.
     private let publishDelay: TimeInterval
 
@@ -43,6 +50,8 @@ public final class AppState: ObservableObject {
                 settings: SettingsStore? = nil,
                 monitor: KeyEventSource? = nil,
                 permission: PermissionChecking? = nil,
+                detector: PatternDetector? = nil,
+                engine: SuggestionEngine? = nil,
                 publishDelay: TimeInterval = 1) {
         let settings = settings ?? SettingsStore()
         self.store = store ?? StatsStore(
@@ -56,6 +65,8 @@ public final class AppState: ObservableObject {
         self.monitor = monitor ?? KeyboardMonitor(
             permission: self.permission,
             appContext: appContext)
+        self.detector = detector ?? PatternDetector(specs: PatternLibrary.defaults)
+        self.engine = engine ?? SuggestionEngine(rules: RuleLibrary.all)
         self.publishDelay = publishDelay
 
         self.monitor.onEvent = { [weak self] event in
@@ -78,7 +89,11 @@ public final class AppState: ObservableObject {
     /// Decide the initial tracking state: honour the pause switch, start the
     /// tap, and fall into the permission page when needed.
     private func bootstrap() {
-        lastDayKey = store.todaySnapshot().dayKey
+        let snapshot = store.todaySnapshot()
+        lastDayKey = snapshot.dayKey
+        todayComboCounts = snapshot.combos
+        suggestionStates = store.loadSuggestionStates()
+        refreshUnreadCount()
         refreshToday()
 
         guard !settings.isPaused else {
@@ -114,11 +129,19 @@ public final class AppState: ObservableObject {
                 if paused {
                     self.monitor.stop()
                     self.isTracking = false
+                    self.detector.resetAll()
                     self.store.flush()
                 } else {
                     self.startMonitor()
                 }
             }
+            .store(in: &cancellables)
+
+        // Nothing is recorded for an excluded app, and bursts must not be
+        // stitched across the exclusion boundary either.
+        settings.$excludedApps
+            .dropFirst()
+            .sink { [weak self] _ in self?.detector.resetAll() }
             .store(in: &cancellables)
     }
 
@@ -157,14 +180,48 @@ public final class AppState: ObservableObject {
 
     /// Single entry point for every keystroke — the tap calls it in
     /// production, tests call it directly.
+    ///
+    /// Order matters: the privacy filter runs before anything is kept, the
+    /// adoption check runs on the fresh count (so coaching closes the loop
+    /// within one keystroke), and the expensive bookkeeping is deferred to
+    /// the throttled publish.
     public func ingest(_ event: KeyEvent) {
         guard !settings.isPaused, isTracking else { return }
         guard !settings.isExcluded(event.application) else { return }
         guard let signature = KeySignatureFilter.signature(for: event) else { return }
 
-        store.incrementCombo(signature.storageKey, app: event.application)
+        // Bursts belong to one app at a time: switching frontmost apps ends
+        // any window in progress.
+        if event.application != lastEventApp {
+            detector.resetAll()
+            lastEventApp = event.application
+        }
+
+        let storageKey = signature.storageKey
+        store.incrementCombo(storageKey, app: event.application)
+        todayComboCounts[storageKey, default: 0] += 1
+
+        // Adoption first — using the coached shortcut is the one event worth
+        // reacting to instantly.
+        if let adoptedRuleID = engine.onComboObserved(
+            signature: storageKey,
+            todayCount: todayComboCounts[storageKey] ?? 0,
+            states: &suggestionStates) {
+            celebration = adoptedRuleID
+            refreshUnreadCount()
+            store.saveSuggestionStates(suggestionStates)
+        }
+
+        // Then pattern detection on the same stroke.
+        let hits = detector.feed(signature: storageKey, at: event.timestamp)
+        for hit in hits {
+            store.recordPatternHit(hit.id, app: event.application)
+        }
+
         schedulePublish()
     }
+
+    private var lastEventApp: String?
 
     /// UI publishes are throttled to one per second — a fast typist should
     /// not re-render the popover a dozen times a second it isn't looking at.
@@ -183,13 +240,67 @@ public final class AppState: ObservableObject {
     private func refreshToday() {
         let snapshot = store.todaySnapshot()
 
-        // Day rollover: prune history and reset any per-day machinery.
+        // Day rollover: prune history, reset per-day machinery, re-derive
+        // the incremental counts.
         if snapshot.dayKey != lastDayKey {
             lastDayKey = snapshot.dayKey
             store.prune()
+            todayComboCounts = snapshot.combos
+            detector.resetAll()
         }
         today = snapshot
+        evaluateSuggestions()
         store.flushIfDue()
+    }
+
+    /// The engine only ever sees a snapshot — no store access, no clock
+    /// reads it can't be given, which is what makes it fully testable.
+    private func evaluateSuggestions() {
+        var allTime: [String: Int] = [:]
+        for rule in RuleLibrary.all {
+            for signature in rule.watchForAdoption {
+                allTime[signature] = store.comboCount(signature, dayLimit: nil)
+            }
+        }
+        let context = EngineContext(
+            dayKey: today.dayKey,
+            patternHitsToday: today.patterns,
+            comboCountsToday: today.combos,
+            comboCountsAllTime: allTime,
+            daysObserved: store.daysObserved())
+
+        let changes = engine.evaluate(context, states: &suggestionStates)
+        if !changes.isEmpty {
+            refreshUnreadCount()
+            store.saveSuggestionStates(suggestionStates)
+        }
+    }
+
+    private func refreshUnreadCount() {
+        unreadCount = suggestionStates.values.count { $0.status == .unread }
+    }
+
+    // MARK: - User actions on cards
+
+    public func markRead(_ ruleID: String) {
+        engine.markRead(ruleID, states: &suggestionStates)
+        refreshUnreadCount()
+        store.saveSuggestionStates(suggestionStates)
+    }
+
+    public func dismiss(_ ruleID: String) {
+        engine.dismiss(ruleID, states: &suggestionStates)
+        refreshUnreadCount()
+        store.saveSuggestionStates(suggestionStates)
+    }
+
+    public func dismissCelebration() {
+        // Celebrated exactly once, ever, per rule.
+        if let ruleID = celebration {
+            suggestionStates[ruleID]?.celebrated = true
+            store.saveSuggestionStates(suggestionStates)
+        }
+        celebration = nil
     }
 
     // MARK: - Popover hooks

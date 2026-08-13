@@ -36,3 +36,33 @@
 "permission.recheck" = "I've granted it — recheck";
 "permission.relaunchHint" = "If it still says “needs permission” after granting, quit and reopen LessMouse.";
 "permission.failedHint" = "The event tap could not start: %@";
+
+/* Rules */
+"rule.deleteByWord.title" = "Delete by word, not by letter";
+"rule.deleteByWord.body" = "You deleted a word one backspace at a time. Option+Delete removes a whole word at once; Command+Delete clears back to the start of the line. Fixing a typo goes from five taps to one.";
+"rule.deleteByWord.summary" = "%ld delete-bursts today";
+
+"rule.hopByWord.title" = "Jump by word, not by letter";
+"rule.hopByWord.body" = "Long runs of ← and → usually mean crossing a sentence to reach a typo. Option+← / Option+→ hop a word at a time; Command+← / Command+→ go to the line's start or end. Your cursor arrives before your patience does.";
+"rule.hopByWord.summary" = "%ld arrow-bursts today";
+
+"rule.selectByWord.title" = "Select by word";
+"rule.selectByWord.body" = "Crawling across text with Shift+arrow selects one character at a time. Hold Option too and each step grabs a whole word; Shift+Command+→ selects everything to the end of the line in one stroke.";
+"rule.selectByWord.summary" = "%ld selection-bursts today";
+
+"rule.docStartEnd.title" = "Reach the top and bottom of a document";
+"rule.docStartEnd.body" = "That long scroll of ↑ and ↓ has a shortcut: Command+↑ jumps to the very beginning, Command+↓ to the very end. Scrolling is for reading; jumping is for going.";
+"rule.docStartEnd.summary" = "%ld long vertical runs today";
+
+"rule.homeEndMac.title" = "Home and End, the Mac way";
+"rule.homeEndMac.body" = "On a Mac, Command+← and Command+→ do what Home and End do elsewhere — start and end of the line, without moving your hands off the home row. (fn+← / fn+→ cover the whole document.)";
+"rule.homeEndMac.summary" = "Home/End used %ld times today";
+
+"rule.sameAppWindows.title" = "Switch windows of the same app";
+"rule.sameAppWindows.body" = "Command+Tab switches apps; Command+` cycles the windows of the app you're already in — the two or three browser windows, the several Xcode projects. A week of typing and it has never once left your keyboard.";
+"rule.sameAppWindows.summary" = "Never used in %ld days of tracking";
+
+"rule.emacsKeys.title" = "The shortcuts macOS hides in every text field";
+"rule.emacsKeys.body" = "Every Mac text field understands Emacs: Control+A to line start, Control+E to line end, Control+P / Control+N up and down a line. They work where arrows are awkward, and they're older than every app you use.";
+"rule.emacsKeys.summary" = "%ld cursor moves today";
+

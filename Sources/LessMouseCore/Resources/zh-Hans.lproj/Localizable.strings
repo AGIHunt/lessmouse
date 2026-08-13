@@ -36,3 +36,33 @@
 "permission.recheck" = "我已授权，重新检测";
 "permission.relaunchHint" = "如果授权后仍显示“需要权限”，请退出并重新打开 LessMouse。";
 "permission.failedHint" = "键盘监听启动失败：%@";
+
+/* 规则 */
+"rule.deleteByWord.title" = "按词删除，而不是逐字删除";
+"rule.deleteByWord.body" = "你刚才一个字一个字地删掉了一个词。Option+⌫ 一次删除整个词；Command+⌫ 直接删到行首。改一个错字从五次按键变成一次。";
+"rule.deleteByWord.summary" = "今日 %ld 次连续退格";
+
+"rule.hopByWord.title" = "按词跳转，而不是逐字移动";
+"rule.hopByWord.body" = "长串的 ← 和 → 往往是为了跨过半句话去改一个错字。Option+← / Option+→ 一次跳一个词；Command+← / Command+→ 直达行首行尾。光标比你的耐心先到。";
+"rule.hopByWord.summary" = "今日 %ld 次连续方向键";
+
+"rule.selectByWord.title" = "按词选择";
+"rule.selectByWord.body" = "用 Shift+方向键一个字一个字地划选很慢。再按住 Option，每一步就选中一个词；Shift+Command+→ 一步选到行尾。";
+"rule.selectByWord.summary" = "今日 %ld 次连续选择";
+
+"rule.docStartEnd.title" = "直达文档的开头和结尾";
+"rule.docStartEnd.body" = "长距离上下滚动有捷径：Command+↑ 直达文档开头，Command+↓ 直达结尾。滚动留给阅读，跳转留给赶路。";
+"rule.docStartEnd.summary" = "今日 %ld 次长距离上下移动";
+
+"rule.homeEndMac.title" = "Mac 方式的 Home 和 End";
+"rule.homeEndMac.body" = "在 Mac 上，Command+← 和 Command+→ 就是别处的 Home 和 End——行首与行尾，而且手不用离开主键位。（fn+← / fn+→ 则对应文档开头结尾。）";
+"rule.homeEndMac.summary" = "今日使用了 %ld 次 Home/End";
+
+"rule.sameAppWindows.title" = "切换同一应用的窗口";
+"rule.sameAppWindows.body" = "Command+Tab 切换应用；Command+` 在当前应用的窗口之间轮换——两三个浏览器窗口、好几个编辑器项目。追踪了一周，它一次都没离开过你的键盘。";
+"rule.sameAppWindows.summary" = "追踪 %ld 天从未使用";
+
+"rule.emacsKeys.title" = "macOS 藏在每个输入框里的快捷键";
+"rule.emacsKeys.body" = "Mac 的每一个文本输入框都认识 Emacs：Control+A 到行首，Control+E 到行尾，Control+P / Control+N 上下移动一行。它们在你够不着方向键的地方依然好用。";
+"rule.emacsKeys.summary" = "今日 %ld 次光标移动";
+

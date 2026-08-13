@@ -156,8 +156,16 @@ struct SuggestionInbox: View {
         case .comboUsage(let signatures, _):
             let total = signatures.reduce(0) { $0 + (state.today.combos[$1] ?? 0) }
             return Loc.format(rule.summaryKey, total)
-        case .comboUnusedAfterDays:
-            return Loc.format(rule.summaryKey, state.store.daysObserved())
+        case .unusedWhileActive(_, let activity, _):
+            let days: Int
+            switch activity {
+            case .browserUse: days = state.activityDays.browser
+            case .multiAppUse: days = state.activityDays.multiApp
+            case .appSwitching: days = 0
+            }
+            return Loc.format(rule.summaryKey, days)
+        case .activityShare:
+            return Loc.format(rule.summaryKey, state.todayAppSwitches)
         }
     }
 }

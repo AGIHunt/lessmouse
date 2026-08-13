@@ -157,4 +157,46 @@ struct StatsStoreTests {
         let date = Date(timeIntervalSince1970: 1_800_000_000) // 2027-01-15 UTC
         #expect(StatsStore.dayKey(for: date, calendar: calendar) == "2027-01-15")
     }
+
+    @Test func activationsCountPerAppPerDay() {
+        let clock = Clock(Date(timeIntervalSince1970: 1_800_000_000))
+        let store = makeStore(directory: tempDirectory(), clock: clock)
+
+        store.recordAppActivation("com.google.Chrome")
+        store.recordAppActivation("com.google.Chrome")
+        store.recordAppActivation("com.apple.Terminal")
+        store.flush()
+
+        let summary = store.todayActivationSummary()
+        #expect(summary.total == 3)
+        #expect(summary.distinctApps == 2)
+
+        // Day summaries expose the same facts for the trigger math.
+        let days = store.daySummaries()
+        let today = days[StatsStore.dayKey(for: clock.date, calendar: calendar)]
+        #expect(today?.apps["com.google.Chrome"]?.activations == 2)
+        #expect(today?.apps["com.apple.Terminal"]?.activations == 1)
+
+        // Next day starts fresh.
+        clock.advance(days: 1, hours: 1)
+        #expect(store.todayActivationSummary().total == 0)
+        #expect(store.daySummaries().count == 1,
+                "yesterday's summary stays in history")
+    }
+
+    @Test func oldFilesWithoutActivationsStillDecode() throws {
+        let directory = tempDirectory()
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        // A v0.1-shaped file: no "activations" key anywhere.
+        let legacy = """
+        {"version":1,"days":{"2027-01-15":{"apps":{"com.apple.Terminal":
+        {"combos":{"cmd+c":2},"patterns":{}}}}}}
+        """
+        try Data(legacy.utf8).write(to: directory.appendingPathComponent("stats.json"))
+
+        let clock = Clock(Date(timeIntervalSince1970: 1_800_000_000))
+        let store = makeStore(directory: directory, clock: clock)
+        #expect(store.comboCount("cmd+c") == 2)
+        #expect(store.todayActivationSummary().total == 0)
+    }
 }

@@ -46,10 +46,28 @@ public struct AppStats: Codable, Equatable {
     public var combos: [String: Int]
     /// Pattern id → times the burst fired today ("backspace-burst": 4).
     public var patterns: [String: Int]
+    /// Times this app came to the front today — the "behavior" side of the
+    /// behavior-vs-keyboard trigger math (e.g. app switching without ⌘Tab).
+    public var activations: Int
 
-    public init(combos: [String: Int] = [:], patterns: [String: Int] = [:]) {
+    public init(combos: [String: Int] = [:], patterns: [String: Int] = [:],
+                activations: Int = 0) {
         self.combos = combos
         self.patterns = patterns
+        self.activations = activations
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case combos, patterns, activations
+    }
+
+    /// Hand-rolled so files written before `activations` existed still
+    /// decode (the field simply reads as zero).
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        combos = try container.decodeIfPresent([String: Int].self, forKey: .combos) ?? [:]
+        patterns = try container.decodeIfPresent([String: Int].self, forKey: .patterns) ?? [:]
+        activations = try container.decodeIfPresent(Int.self, forKey: .activations) ?? 0
     }
 }
 

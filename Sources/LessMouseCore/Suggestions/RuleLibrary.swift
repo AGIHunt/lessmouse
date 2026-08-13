@@ -64,7 +64,9 @@ public enum RuleLibrary {
         ),
         SuggestionRule(
             id: "same-app-windows",
-            trigger: .comboUnusedAfterDays(signature: "cmd+grave", days: 7),
+            trigger: .unusedWhileActive(signature: "cmd+grave",
+                                        activity: .multiAppUse,
+                                        minimumDays: 3),
             watchForAdoption: ["cmd+grave"],
             titleKey: "rule.sameAppWindows.title",
             bodyKey: "rule.sameAppWindows.body",
@@ -83,6 +85,34 @@ public enum RuleLibrary {
             keyCaps: [[.modifier(.control), "A"], [.modifier(.control), "E"],
                       [.modifier(.control), "N"], [.modifier(.control), "P"]],
             symbol: "text.cursor",
+            cooldownDays: 30
+        ),
+        SuggestionRule(
+            id: "app-switching",
+            trigger: .activityShare(signature: "cmd+tab",
+                                    activity: .appSwitching,
+                                    dailyMinimum: 15,
+                                    maxShare: 0.2),
+            watchForAdoption: ["cmd+tab"],
+            titleKey: "rule.appSwitching.title",
+            bodyKey: "rule.appSwitching.body",
+            summaryKey: "rule.appSwitching.summary",
+            keyCaps: [[.modifier(.command), "⇥"]],
+            symbol: "arrow.2.squarepath",
+            cooldownDays: 30
+        ),
+        SuggestionRule(
+            id: "tab-switching",
+            trigger: .unusedWhileActive(signature: "ctrl+tab",
+                                        activity: .browserUse,
+                                        minimumDays: 3),
+            watchForAdoption: ["ctrl+tab", "ctrl+shift+tab"],
+            titleKey: "rule.tabSwitching.title",
+            bodyKey: "rule.tabSwitching.body",
+            summaryKey: "rule.tabSwitching.summary",
+            keyCaps: [[.modifier(.control), "⇥"],
+                      [.modifier(.control), .modifier(.shift), "⇥"]],
+            symbol: "chevron.left.chevron.right",
             cooldownDays: 30
         ),
     ]

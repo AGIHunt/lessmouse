@@ -103,6 +103,19 @@ public final class StatsStore {
         }
     }
 
+    /// Count one "this app came to the front" event for today — the raw
+    /// material of the behavior-vs-keyboard triggers.
+    public func recordAppActivation(_ bundleID: String?) {
+        let key = bundleID ?? ""
+        let dayKey = Self.dayKey(for: now(), calendar: calendar)
+        queue.async { [self] in
+            root.days[dayKey, default: DayStats()]
+                .apps[key, default: AppStats()]
+                .activations += 1
+            dirty = true
+        }
+    }
+
     // MARK: - Reads
 
     /// Today's flattened counts, or an empty snapshot if nothing yet.
@@ -165,13 +178,30 @@ public final class StatsStore {
         }
     }
 
-    /// How many distinct days hold any data at all — the "7 days observed"
-    /// input of the ⌘` rule.
+    /// How many distinct days hold any data at all.
     public func daysObserved() -> Int {
         queue.sync { [self] in
             root.days.values.filter { day in
                 day.apps.values.contains { !$0.combos.isEmpty || !$0.patterns.isEmpty }
             }.count
+        }
+    }
+
+    /// Copy of every day on record — the trigger math for "days with
+    /// browser activity" and "days with multiple apps in front" walks this.
+    /// 60 days of retention makes the walk trivially cheap.
+    public func daySummaries() -> [String: DayStats] {
+        queue.sync { [self] in root.days }
+    }
+
+    /// Today's activation counts: total switches and distinct apps fronted.
+    public func todayActivationSummary() -> (total: Int, distinctApps: Int) {
+        let dayKey = Self.dayKey(for: now(), calendar: calendar)
+        return queue.sync { [self] in
+            let apps = root.days[dayKey]?.apps ?? [:]
+            let activated = apps.values.map(\.activations).reduce(0, +)
+            let distinct = apps.values.count { $0.activations > 0 }
+            return (activated, distinct)
         }
     }
 

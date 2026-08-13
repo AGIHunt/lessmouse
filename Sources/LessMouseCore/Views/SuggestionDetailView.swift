@@ -19,8 +19,14 @@ struct SuggestionDetailView: View {
             return state.today.patterns[id] ?? 0
         case .comboUsage(let signatures, _):
             return signatures.reduce(0) { $0 + (state.today.combos[$1] ?? 0) }
-        case .comboUnusedAfterDays:
-            return 0
+        case .unusedWhileActive(_, let activity, _):
+            switch activity {
+            case .browserUse: return state.activityDays.browser
+            case .multiAppUse: return state.activityDays.multiApp
+            case .appSwitching: return 0
+            }
+        case .activityShare:
+            return state.todayAppSwitches
         }
     }
 
@@ -41,15 +47,9 @@ struct SuggestionDetailView: View {
                                             .font(.system(size: 12, weight: .medium))
                                     }
                                     VStack(alignment: .leading, spacing: 2) {
-                                        if case .comboUnusedAfterDays = rule.trigger {
-                                            Text(Loc.format(rule.summaryKey, state.store.daysObserved()))
-                                                .font(Typo.rowSubtitle)
-                                                .foregroundStyle(Palette.textTertiary)
-                                        } else {
-                                            Text(Loc.format(rule.summaryKey, triggerCount))
-                                                .font(Typo.rowSubtitle)
-                                                .foregroundStyle(Palette.textTertiary)
-                                        }
+                                        Text(Loc.format(rule.summaryKey, triggerCount))
+                                            .font(Typo.rowSubtitle)
+                                            .foregroundStyle(Palette.textTertiary)
                                         KeyCapRow(caps: rule.keyCaps.first ?? [])
                                             .padding(.top, 6)
                                     }

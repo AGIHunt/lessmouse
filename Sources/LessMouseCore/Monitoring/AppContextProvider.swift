@@ -16,6 +16,12 @@ public final class AppContextProvider: AppContextProviding {
     private let lock = NSLock()
     private var cached: String?
 
+    /// Fires on every app activation (main thread via the notification
+    /// queue) — the behavior side of the trigger math. LessMouse's own
+    /// activations are passed through like any other app; callers filter
+    /// if they care.
+    public var onActivation: ((String?) -> Void)?
+
     private var observer: NSObjectProtocol?
 
     public init() {}
@@ -38,6 +44,7 @@ public final class AppContextProvider: AppContextProviding {
                 return
             }
             self?.update(info.bundleIdentifier)
+            self?.onActivation?(info.bundleIdentifier)
         }
     }
 

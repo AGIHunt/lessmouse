@@ -123,8 +123,10 @@ build the app (`scripts/make-app.sh`) and launch that.
 | Selecting char by char | ⌥⇧←/→ select by word · ⇧⌘→ select to line end |
 | Scrolling documents | ⌘↑/⌘↓ document start/end |
 | Using Home/End | ⌘←/⌘→ — the Mac way |
-| Never touching ⌘` | switching windows of one app |
+| Never touching ⌘` | switching windows of one app *(taught after days of multi-app work without it)* |
 | Moving by arrow alone | ⌃A/⌃E/⌃P/⌃N — the Emacs keys every Mac text field knows |
+| Switching apps by mouse | ⌘⇥ — when app switches are many but ⌘Tab's share of them is tiny |
+| Switching browser tabs by mouse | ⌃⇥ / ⇧⌃⇥ — after days of browser use without them |
 
 Cards cool down when read but not adopted (3–5 days), disappear forever when
 dismissed, and celebrate exactly once when adopted.

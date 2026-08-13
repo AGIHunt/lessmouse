@@ -12,7 +12,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-VERSION="${VERSION:-0.1.0}"
+VERSION="${VERSION:-0.2.0}"
 BUILD="${BUILD:-$(git rev-parse --short HEAD 2>/dev/null || echo dev)}"
 BUNDLE_ID="${BUNDLE_ID:-dev.lessmouse.menubar}"
 IDENTITY="${CODESIGN_IDENTITY:--}"

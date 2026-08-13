@@ -1,13 +1,32 @@
 import Foundation
 
-/// What wakes a rule up. Three shapes cover the v1 book:
+/// What wakes a rule up. Four shapes cover the book:
 /// a burst pattern crossing its daily line, a plain usage total
-/// (Home/End pressed N times today), and "enough days observed, and a
-/// shortcut never once used" (⌘`).
+/// (Home/End pressed N times today), "the behavior happened while the
+/// shortcut never did" (browsers used, ⌃Tab never pressed), and a
+/// behavior-vs-keyboard ratio (apps switched 20×, ⌘Tab used twice).
 public enum RuleTrigger: Hashable {
     case patternBursts(id: String, dailyMinimum: Int)
     case comboUsage(signatures: [String], dailyMinimum: Int)
-    case comboUnusedAfterDays(signature: String, days: Int)
+    /// The shortcut was never pressed, ever, while the activity that
+    /// shortcut serves was observed for at least `minimumDays` days.
+    case unusedWhileActive(signature: String, activity: ActivityKind, minimumDays: Int)
+    /// The activity happens at volume but the shortcut covers too little of
+    /// it — e.g. app switching by mouse with ⌘Tab known but idle.
+    case activityShare(signature: String, activity: ActivityKind, dailyMinimum: Int, maxShare: Double)
+}
+
+/// The "behavior" a trigger can watch. Deliberately coarse: browser use
+/// implies tab switching, multi-app use implies window juggling — detecting
+/// the implication's trigger (mouse clicks on a tab bar) would cost
+/// permissions these rules don't need.
+public enum ActivityKind: Hashable {
+    /// Any cataloged browser came to the front.
+    case browserUse
+    /// Two or more apps (excluding LessMouse) came to the front.
+    case multiAppUse
+    /// Apps came to the front (each activation counts once).
+    case appSwitching
 }
 
 /// One coaching card: when it appears, what it teaches, how adoption is
@@ -108,17 +127,26 @@ public struct EngineContext: Equatable {
     public var patternHitsToday: [String: Int]
     public var comboCountsToday: [String: Int]
     public var comboCountsAllTime: [String: Int]
-    public var daysObserved: Int
+    /// App activations today (each fronting counts once).
+    public var appSwitchesToday: Int
+    /// Distinct days where any cataloged browser came to the front.
+    public var browserActiveDays: Int
+    /// Distinct days where 2+ apps (besides LessMouse) came to the front.
+    public var multiAppActiveDays: Int
 
     public init(dayKey: String,
                 patternHitsToday: [String: Int] = [:],
                 comboCountsToday: [String: Int] = [:],
                 comboCountsAllTime: [String: Int] = [:],
-                daysObserved: Int = 0) {
+                appSwitchesToday: Int = 0,
+                browserActiveDays: Int = 0,
+                multiAppActiveDays: Int = 0) {
         self.dayKey = dayKey
         self.patternHitsToday = patternHitsToday
         self.comboCountsToday = comboCountsToday
         self.comboCountsAllTime = comboCountsAllTime
-        self.daysObserved = daysObserved
+        self.appSwitchesToday = appSwitchesToday
+        self.browserActiveDays = browserActiveDays
+        self.multiAppActiveDays = multiAppActiveDays
     }
 }

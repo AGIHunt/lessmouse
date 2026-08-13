@@ -19,12 +19,16 @@ import Testing
                          patternHits: [String: Int] = [:],
                          combos: [String: Int] = [:],
                          allTime: [String: Int] = [:],
-                         daysObserved: Int = 1) -> EngineContext {
+                         appSwitches: Int = 0,
+                         browserDays: Int = 0,
+                         multiAppDays: Int = 0) -> EngineContext {
         EngineContext(dayKey: dayKey,
                       patternHitsToday: patternHits,
                       comboCountsToday: combos,
                       comboCountsAllTime: allTime,
-                      daysObserved: daysObserved)
+                      appSwitchesToday: appSwitches,
+                      browserActiveDays: browserDays,
+                      multiAppActiveDays: multiAppDays)
     }
 
     // MARK: - Triggering
@@ -58,22 +62,62 @@ import Testing
         #expect(states["home-end-mac"]?.status == .unread)
     }
 
-    @Test func unusedAfterDaysWaitsForAWeekOfData() {
+    @Test func browserUseWithoutCtrlTabFiresAfterThreeDays() {
+        let engine = engine()
+        var states: [String: SuggestionState] = [:]
+
+        // Two days of browsing, ⌃⇥ never pressed: not yet.
+        var changes = engine.evaluate(
+            context(allTime: ["ctrl+tab": 0], browserDays: 2), states: &states)
+        #expect(changes.isEmpty)
+
+        // Third day: the card.
+        changes = engine.evaluate(
+            context(allTime: ["ctrl+tab": 0], browserDays: 3), states: &states)
+        #expect(changes == [.becameUnread("tab-switching")])
+
+        // Anyone who ever pressed ⌃⇥ never sees it.
+        states = [:]
+        changes = engine.evaluate(
+            context(allTime: ["ctrl+tab": 1], browserDays: 30), states: &states)
+        #expect(changes.isEmpty)
+    }
+
+    @Test func multiAppUseWithoutCmdGraveFiresSameAppWindows() {
         let engine = engine()
         var states: [String: SuggestionState] = [:]
 
         var changes = engine.evaluate(
-            context(allTime: ["cmd+grave": 0], daysObserved: 6), states: &states)
+            context(allTime: ["cmd+grave": 0], multiAppDays: 2), states: &states)
         #expect(changes.isEmpty)
 
         changes = engine.evaluate(
-            context(allTime: ["cmd+grave": 0], daysObserved: 7), states: &states)
+            context(allTime: ["cmd+grave": 0], multiAppDays: 3), states: &states)
         #expect(changes == [.becameUnread("same-app-windows")])
 
-        // A user who has ever used ⌘` never gets this card.
         states = [:]
         changes = engine.evaluate(
-            context(allTime: ["cmd+grave": 1], daysObserved: 30), states: &states)
+            context(allTime: ["cmd+grave": 1], multiAppDays: 30), states: &states)
+        #expect(changes.isEmpty)
+    }
+
+    @Test func heavyMouseSwitchingFiresAppSwitching() {
+        let engine = engine()
+        var states: [String: SuggestionState] = [:]
+
+        // 14 switches: below the volume gate.
+        #expect(engine.evaluate(context(combos: ["cmd+tab": 0], appSwitches: 14),
+                                states: &states).isEmpty)
+
+        // 20 switches, ⌘Tab used once: a mouse switcher — card.
+        var changes = engine.evaluate(context(combos: ["cmd+tab": 1], appSwitches: 20),
+                                      states: &states)
+        #expect(changes == [.becameUnread("app-switching")])
+
+        // 20 switches, ⌘Tab used 10 of them: knows the shortcut, no card.
+        states = [:]
+        changes = engine.evaluate(context(combos: ["cmd+tab": 10], appSwitches: 20),
+                                  states: &states)
         #expect(changes.isEmpty)
     }
 

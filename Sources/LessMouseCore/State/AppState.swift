@@ -24,6 +24,17 @@ public final class AppState: ObservableObject {
     @Published public private(set) var unreadCount = 0
     /// Rule id of a just-adopted shortcut, for the celebration banner.
     @Published public private(set) var celebration: String?
+    /// App activations today — the "behavior" ledger the ratio triggers read.
+    @Published public private(set) var todayAppSwitches = 0
+    /// Days of coarse activity signals the unused-while-active triggers read.
+    @Published public private(set) var activityDays = ActivityDays()
+
+    /// Browser-frontmost days and multi-app days, as one published fact.
+    public struct ActivityDays: Equatable {
+        public var browser = 0
+        public var multiApp = 0
+        public init() {}
+    }
 
     public var language: String? { Loc.language }
 
@@ -68,6 +79,12 @@ public final class AppState: ObservableObject {
         self.detector = detector ?? PatternDetector(specs: PatternLibrary.defaults)
         self.engine = engine ?? SuggestionEngine(rules: RuleLibrary.all)
         self.publishDelay = publishDelay
+
+        // Wired after every stored property is set: the closure captures
+        // self, which is only legal past that point.
+        appContext.onActivation = { [weak self] bundleID in
+            Task { @MainActor [weak self] in self?.noteAppActivation(bundleID) }
+        }
 
         self.monitor.onEvent = { [weak self] event in
             // The tap thread hands off immediately; everything downstream is
@@ -176,6 +193,34 @@ public final class AppState: ObservableObject {
         permissionPoller = nil
     }
 
+    // MARK: - Behavior signals
+
+    /// An app came to the front. Counted even while "paused": app switching
+    /// is not keyboard input, and the ⌘Tab card's argument is about the
+    /// mouse, not the keys.
+    public func noteAppActivation(_ bundleID: String?) {
+        guard let bundleID, bundleID != Bundle.main.bundleIdentifier else { return }
+        store.recordAppActivation(bundleID)
+        schedulePublish()
+    }
+
+    /// Coarse activity facts the engine and the card summaries read:
+    /// how many days a browser was frontmost, how many days 2+ apps were.
+    private func computeActivityDays() -> ActivityDays {
+        let ownBundleID = Bundle.main.bundleIdentifier
+        var days = ActivityDays()
+        for day in store.daySummaries().values {
+            let fronted = day.apps.filter { $0.value.activations > 0 }.map(\.key)
+            if fronted.contains(where: BrowserCatalog.isBrowser) {
+                days.browser += 1
+            }
+            if fronted.filter({ $0 != ownBundleID }).count >= 2 {
+                days.multiApp += 1
+            }
+        }
+        return days
+    }
+
     // MARK: - The pipeline
 
     /// Single entry point for every keystroke — the tap calls it in
@@ -249,6 +294,9 @@ public final class AppState: ObservableObject {
             detector.resetAll()
         }
         today = snapshot
+        let activationSummary = store.todayActivationSummary()
+        todayAppSwitches = activationSummary.total
+        activityDays = computeActivityDays()
         evaluateSuggestions()
         store.flushIfDue()
     }
@@ -267,7 +315,9 @@ public final class AppState: ObservableObject {
             patternHitsToday: today.patterns,
             comboCountsToday: today.combos,
             comboCountsAllTime: allTime,
-            daysObserved: store.daysObserved())
+            appSwitchesToday: todayAppSwitches,
+            browserActiveDays: activityDays.browser,
+            multiAppActiveDays: activityDays.multiApp)
 
         let changes = engine.evaluate(context, states: &suggestionStates)
         if !changes.isEmpty {

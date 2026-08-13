@@ -59,8 +59,16 @@
 "rule.homeEndMac.summary" = "Home/End used %ld times today";
 
 "rule.sameAppWindows.title" = "Switch windows of the same app";
-"rule.sameAppWindows.body" = "Command+Tab switches apps; Command+` cycles the windows of the app you're already in — the two or three browser windows, the several Xcode projects. A week of typing and it has never once left your keyboard.";
-"rule.sameAppWindows.summary" = "Never used in %ld days of tracking";
+"rule.sameAppWindows.body" = "Command+Tab switches apps; Command+` cycles the windows of the app you're already in — the two or three browser windows, the several editor projects. You've been working across apps without it all this time.";
+"rule.sameAppWindows.summary" = "%ld days of multi-app work, ⌘` never used";
+
+"rule.appSwitching.title" = "Switch apps without the mouse";
+"rule.appSwitching.body" = "You changed apps again and again today, and almost none of that was Command+Tab. Hold ⌘ and tap ⇥ to cycle open apps; keep ⌘ held and press ⇥ again for the next one. The Dock is for finding apps you've forgotten, not for commuting between two you already know.";
+"rule.appSwitching.summary" = "%ld app switches today";
+
+"rule.tabSwitching.title" = "Switch browser tabs from the keyboard";
+"rule.tabSwitching.body" = "You've been using a browser for days without Control+Tab — the shortcut that moves to the next tab, in every browser on the Mac. Control+Shift+Tab goes back one. Your mouse can stay where it is.";
+"rule.tabSwitching.summary" = "%ld days of browsing, ⌃⇥ never used";
 
 "rule.emacsKeys.title" = "The shortcuts macOS hides in every text field";
 "rule.emacsKeys.body" = "Every Mac text field understands Emacs: Control+A to line start, Control+E to line end, Control+P / Control+N up and down a line. They work where arrows are awkward, and they're older than every app you use.";

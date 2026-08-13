@@ -71,9 +71,23 @@ public final class SuggestionEngine {
             let total = signatures.reduce(0) { $0 + (context.comboCountsToday[$1] ?? 0) }
             return total >= dailyMinimum
 
-        case .comboUnusedAfterDays(let signature, let days):
-            return context.daysObserved >= days
-                && (context.comboCountsAllTime[signature] ?? 0) == 0
+        case .unusedWhileActive(let signature, let activity, let minimumDays):
+            guard (context.comboCountsAllTime[signature] ?? 0) == 0 else { return false }
+            switch activity {
+            case .browserUse: return context.browserActiveDays >= minimumDays
+            case .multiAppUse: return context.multiAppActiveDays >= minimumDays
+            case .appSwitching: return false
+            }
+
+        case .activityShare(let signature, let activity, let dailyMinimum, let maxShare):
+            let volume: Int
+            switch activity {
+            case .browserUse, .multiAppUse: return false
+            case .appSwitching: volume = context.appSwitchesToday
+            }
+            guard volume >= dailyMinimum else { return false }
+            let viaShortcut = context.comboCountsToday[signature] ?? 0
+            return Double(viaShortcut) < maxShare * Double(volume)
         }
     }
 

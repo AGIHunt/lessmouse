@@ -59,8 +59,16 @@
 "rule.homeEndMac.summary" = "今日使用了 %ld 次 Home/End";
 
 "rule.sameAppWindows.title" = "切换同一应用的窗口";
-"rule.sameAppWindows.body" = "Command+Tab 切换应用；Command+` 在当前应用的窗口之间轮换——两三个浏览器窗口、好几个编辑器项目。追踪了一周，它一次都没离开过你的键盘。";
-"rule.sameAppWindows.summary" = "追踪 %ld 天从未使用";
+"rule.sameAppWindows.body" = "Command+Tab 切换应用；Command+` 在当前应用的窗口之间轮换——两三个浏览器窗口、好几个编辑器项目。你一直在多应用间工作，却从没用过它。";
+"rule.sameAppWindows.summary" = "多应用工作 %ld 天，⌘` 从未使用";
+
+"rule.appSwitching.title" = "不用鼠标切换应用";
+"rule.appSwitching.body" = "你今天一次又一次地切换应用，却几乎没用过 Command+Tab。按住 ⌘ 点 ⇥ 在打开的应用间轮换；保持按住 ⌘ 再按 ⇥ 到下一个。Dock 是用来找好久没开的应用的，不是用来在两个熟应用之间通勤的。";
+"rule.appSwitching.summary" = "今日 %ld 次应用切换";
+
+"rule.tabSwitching.title" = "用键盘切换浏览器标签";
+"rule.tabSwitching.body" = "你用了好几天浏览器，却从没按过 Control+Tab——Mac 上每个浏览器都支持的「下一个标签」快捷键。Control+Shift+Tab 返回上一个。鼠标可以待在原处了。";
+"rule.tabSwitching.summary" = "浏览 %ld 天，⌃⇥ 从未使用";
 
 "rule.emacsKeys.title" = "macOS 藏在每个输入框里的快捷键";
 "rule.emacsKeys.body" = "Mac 的每一个文本输入框都认识 Emacs：Control+A 到行首，Control+E 到行尾，Control+P / Control+N 上下移动一行。它们在你够不着方向键的地方依然好用。";

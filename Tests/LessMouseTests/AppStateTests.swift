@@ -174,6 +174,22 @@ struct AppStateTests {
         #expect(permission.settingsOpened == 1)
     }
 
+    // MARK: - Behavior signals
+
+    @Test func appActivationsFeedTheBehaviorLedger() async {
+        let (state, _, _) = makeState()
+        state.noteAppActivation("com.apple.Safari")
+        state.noteAppActivation("com.google.Chrome")
+        state.noteAppActivation("com.apple.Safari")
+        await waitUntil(state.todayAppSwitches == 3)
+
+        #expect(state.todayAppSwitches == 3)
+        #expect(state.activityDays.browser == 1,
+                "a browser was frontmost today, so today counts as a browser day")
+        #expect(state.activityDays.multiApp == 1,
+                "two distinct apps were frontmost today")
+    }
+
     // MARK: - End to end: burst → card → adoption
 
     @Test func fiveBackspacesProduceAnUnreadCard() async {

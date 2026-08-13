@@ -144,6 +144,75 @@ func appIconPNG() throws -> Data {
     return output as Data
 }
 
+// MARK: - Structural check
+//
+// Both icons are font-rendered (CoreText), so byte-exact comparison is not
+// stable across machines — GitHub's runners rasterize Helvetica Neue
+// slightly differently than a dev laptop, and the first CI run failed on
+// exactly that. The check therefore compares structure: same pixel
+// dimensions, and alpha maps that agree within tolerance after
+// downsampling. A stale committed PNG (someone changed the geometry without
+// regenerating) still fails loudly; a different machine's antialiasing
+// does not.
+
+func alphaMap(of png: Data, sample: Int) -> (size: CGSize, coverage: Double, map: [Double])? {
+    guard let source = CGImageSourceCreateWithData(png as CFData, nil),
+          let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return nil }
+
+    let width = image.width
+    let height = image.height
+    let context = CGContext(data: nil, width: sample, height: sample,
+                            bitsPerComponent: 8, bytesPerRow: sample * 4,
+                            space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+    context.interpolationQuality = .medium
+    context.draw(image, in: CGRect(x: 0, y: 0, width: sample, height: sample))
+
+    guard let data = context.data else { return nil }
+    let pixels = data.bindMemory(to: UInt8.self, capacity: sample * sample * 4)
+    var map = [Double]()
+    map.reserveCapacity(sample * sample)
+    var covered = 0
+    for i in 0..<(sample * sample) {
+        let alpha = Double(pixels[i * 4 + 3]) / 255
+        map.append(alpha)
+        if alpha > 0.35 { covered += 1 }
+    }
+    return (CGSize(width: width, height: height),
+            Double(covered) / Double(sample * sample),
+            map)
+}
+
+/// True when both PNGs describe the same picture within tolerance.
+func structurallyEqual(_ committed: Data, _ fresh: Data, name: String) -> Bool {
+    let sample = 64
+    guard let committedMap = alphaMap(of: committed, sample: sample),
+          let freshMap = alphaMap(of: fresh, sample: sample) else {
+        print("✗ \(name): cannot decode for comparison")
+        return false
+    }
+    guard committedMap.size == freshMap.size else {
+        print("✗ \(name): pixel size \(committedMap.size) ≠ \(freshMap.size) — run scripts/make-icons.swift")
+        return false
+    }
+    // Geometry changes move ink coverage far more than font rasterization
+    // does; 4pp separates the two comfortably.
+    let coverageDelta = abs(committedMap.coverage - freshMap.coverage)
+    guard coverageDelta <= 0.04 else {
+        print(String(format: "✗ %@: ink coverage %.1f%% vs %.1f%% — run scripts/make-icons.swift",
+                     name, committedMap.coverage * 100, freshMap.coverage * 100))
+        return false
+    }
+    let meanDiff = zip(committedMap.map, freshMap.map).reduce(0.0) { $0 + abs($1.0 - $1.1) }
+        / Double(committedMap.map.count)
+    guard meanDiff <= 0.08 else {
+        print(String(format: "✗ %@: alpha maps differ by %.3f mean — run scripts/make-icons.swift",
+                     name, meanDiff))
+        return false
+    }
+    return true
+}
+
 // MARK: - main
 
 let repoRoot = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
@@ -160,15 +229,16 @@ do {
     if check {
         let onDiskMenuBar = (try? Data(contentsOf: menuBarURL)) ?? Data()
         let onDiskAppIcon = (try? Data(contentsOf: appIconURL)) ?? Data()
-        if onDiskMenuBar != menuBar {
-            print("✗ MenuBarIcon.png does not match the geometry — run scripts/make-icons.swift")
+        if structurallyEqual(onDiskMenuBar, menuBar, name: "MenuBarIcon.png") {
+            print("✓ MenuBarIcon.png matches the geometry")
+        } else {
             failures += 1
         }
-        if onDiskAppIcon != appIcon {
-            print("✗ AppIcon-1024.png does not match the geometry — run scripts/make-icons.swift")
+        if structurallyEqual(onDiskAppIcon, appIcon, name: "AppIcon-1024.png") {
+            print("✓ AppIcon-1024.png matches the geometry")
+        } else {
             failures += 1
         }
-        if failures == 0 { print("✓ derived art matches the geometry") }
     } else {
         try menuBar.write(to: menuBarURL)
         try appIcon.write(to: appIconURL)

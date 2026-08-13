@@ -30,7 +30,7 @@
 "today.combos" = "不同组合";
 "today.combos.hint" = "今日使用的 ⌘/⌥/⌃ 组合数";
 
-"permission.body" = "LessMouse 需要辅助功能权限来统计你的键盘使用模式。它只记录快捷键组合与导航键的次数，绝不记录你输入的内容。";
+"permission.body" = "LessMouse 需要「输入监控」权限来统计你的键盘使用模式（只读监听，不能注入按键）。它只记录快捷键组合与导航键的次数，绝不记录你输入的内容。";
 "permission.onlyRecords" = "只记录这样的计数：";
 "permission.openSettings" = "打开系统设置";
 "permission.recheck" = "我已授权，重新检测";

@@ -30,7 +30,7 @@
 "today.combos" = "Distinct shortcuts";
 "today.combos.hint" = "Different ⌘/⌥/⌃ combinations used today";
 
-"permission.body" = "LessMouse needs Accessibility permission to count your keyboard patterns. It records only shortcut combinations and navigation-key counts — never the text you type.";
+"permission.body" = "LessMouse needs Input Monitoring permission to count your keyboard patterns (listen-only — it cannot inject keystrokes). It records only shortcut combinations and navigation-key counts — never the text you type.";
 "permission.onlyRecords" = "Only counts like:";
 "permission.openSettings" = "Open System Settings";
 "permission.recheck" = "I've granted it — recheck";

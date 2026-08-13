@@ -70,7 +70,7 @@ public final class KeyboardMonitor: KeyEventSource {
             ) else {
                 let granted = self.permission.isGranted()
                 box.store(granted
-                          ? .failed("event tap was refused despite permission — relaunch the app")
+                          ? .failed("event tap was refused despite Input Monitoring — relaunch the app")
                           : .needsPermission)
                 boot.signal()
                 return

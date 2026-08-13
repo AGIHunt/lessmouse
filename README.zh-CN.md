@@ -57,7 +57,7 @@
 **从源码构建**（全程不需要 Apple 开发者付费账号）：
 
 ```bash
-git clone …/LessMouse.git
+git clone https://github.com/AGIHunt/lessmouse.git
 cd LessMouse
 scripts/make-app.sh     # 构建、组装、ad-hoc 签名 → dist/LessMouse.zip
 ```

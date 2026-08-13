@@ -82,7 +82,7 @@ source.
 **From source** (no Apple Developer account needed anywhere):
 
 ```bash
-git clone https://github.com/…/LessMouse.git
+git clone https://github.com/AGIHunt/lessmouse.git
 cd LessMouse
 scripts/make-app.sh     # builds, bundles, ad-hoc signs → dist/LessMouse.zip
 ```

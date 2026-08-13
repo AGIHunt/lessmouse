@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- LessMouse app icon (source of truth), house language applied:
+       clean paper field, one ink keycap, the single green spent on one dot.
+       Derived into AppIcon.icns by scripts/make-icons.swift. -->
+  <rect width="1024" height="1024" fill="#F7F8F7"/>
+  <rect x="202" y="272" width="620" height="480" rx="120" fill="#0B0F0C"/>
+  <circle cx="790" cy="254" r="96" fill="#2CDB5C"/>
+  <!-- The ⌘ glyph: four loops and a stem, drawn to match the system mark. -->
+  <g stroke="#FFFFFF" stroke-width="52" fill="none">
+    <path d="M 352 362 L 352 662"/>
+    <path d="M 512 362 L 512 662"/>
+    <path d="M 672 362 L 672 662"/>
+    <path d="M 352 362 L 352 332 A 44 44 0 0 0 264 332 L 264 362"/>
+    <path d="M 512 362 L 512 332 A 44 44 0 0 0 424 332 L 424 362"/>
+    <path d="M 672 362 L 672 332 A 44 44 0 0 0 584 332 L 584 362"/>
+    <path d="M 352 662 L 352 692 A 44 44 0 0 1 264 692 L 264 662"/>
+    <path d="M 512 662 L 512 692 A 44 44 0 0 1 424 692 L 424 662"/>
+    <path d="M 672 662 L 672 692 A 44 44 0 0 1 584 692 L 584 662"/>
+  </g>
+  <rect x="202" y="272" width="620" height="480" rx="120" fill="none" stroke="#FFFFFF" stroke-opacity="0.06" stroke-width="8"/>
+</svg>

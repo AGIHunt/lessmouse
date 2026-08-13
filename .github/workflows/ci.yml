@@ -19,6 +19,9 @@ jobs:
       - name: Test
         run: swift test
 
+      - name: Icons match geometry
+        run: swift scripts/make-icons.swift --check
+
   app:
     name: Bundle LessMouse.app
     runs-on: macos-15

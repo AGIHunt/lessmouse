@@ -17,3 +17,22 @@
 "suggestion.title" = "快捷键";
 "stats.title" = "数据统计";
 "settings.title" = "设置";
+
+"tracking.active" = "追踪中";
+"tracking.paused" = "已暂停";
+"tracking.needsPermission" = "需要权限";
+"tracking.todaySummary" = "今日 %ld 次按键 · %ld 个不同组合";
+
+"today.events" = "按键事件";
+"today.events.hint" = "今日统计的快捷键与导航键";
+"today.patterns" = "低效模式";
+"today.patterns.hint" = "本可用快捷键替代的连击";
+"today.combos" = "不同组合";
+"today.combos.hint" = "今日使用的 ⌘/⌥/⌃ 组合数";
+
+"permission.body" = "LessMouse 需要辅助功能权限来统计你的键盘使用模式。它只记录快捷键组合与导航键的次数，绝不记录你输入的内容。";
+"permission.onlyRecords" = "只记录这样的计数：";
+"permission.openSettings" = "打开系统设置";
+"permission.recheck" = "我已授权，重新检测";
+"permission.relaunchHint" = "如果授权后仍显示“需要权限”，请退出并重新打开 LessMouse。";
+"permission.failedHint" = "键盘监听启动失败：%@";

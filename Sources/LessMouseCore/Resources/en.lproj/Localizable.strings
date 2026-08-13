@@ -17,3 +17,22 @@
 "suggestion.title" = "Shortcut";
 "stats.title" = "Stats";
 "settings.title" = "Settings";
+
+"tracking.active" = "Tracking";
+"tracking.paused" = "Paused";
+"tracking.needsPermission" = "Needs permission";
+"tracking.todaySummary" = "Today: %ld key events · %ld distinct shortcuts";
+
+"today.events" = "Key events";
+"today.events.hint" = "Shortcuts and navigation keys counted today";
+"today.patterns" = "Slow patterns";
+"today.patterns.hint" = "Bursts a shortcut could have replaced";
+"today.combos" = "Distinct shortcuts";
+"today.combos.hint" = "Different ⌘/⌥/⌃ combinations used today";
+
+"permission.body" = "LessMouse needs Accessibility permission to count your keyboard patterns. It records only shortcut combinations and navigation-key counts — never the text you type.";
+"permission.onlyRecords" = "Only counts like:";
+"permission.openSettings" = "Open System Settings";
+"permission.recheck" = "I've granted it — recheck";
+"permission.relaunchHint" = "If it still says “needs permission” after granting, quit and reopen LessMouse.";
+"permission.failedHint" = "The event tap could not start: %@";

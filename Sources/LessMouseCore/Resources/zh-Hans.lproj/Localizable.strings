@@ -72,7 +72,7 @@
 
 "rule.emacsKeys.title" = "macOS 藏在每个输入框里的快捷键";
 "rule.emacsKeys.body" = "Mac 的每一个文本输入框都认识 Emacs：Control+A 到行首，Control+E 到行尾，Control+P / Control+N 上下移动一行。它们在你够不着方向键的地方依然好用。";
-"rule.emacsKeys.summary" = "今日 %ld 次光标移动";
+"rule.emacsKeys.summary" = "今日 %ld 次方向键连爬";
 
 /* 收件箱 / 详情 / 庆祝 */
 "inbox.title" = "建议";

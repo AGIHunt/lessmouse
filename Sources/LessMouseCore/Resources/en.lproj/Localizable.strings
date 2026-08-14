@@ -72,7 +72,7 @@
 
 "rule.emacsKeys.title" = "The shortcuts macOS hides in every text field";
 "rule.emacsKeys.body" = "Every Mac text field understands Emacs: Control+A to line start, Control+E to line end, Control+P / Control+N up and down a line. They work where arrows are awkward, and they're older than every app you use.";
-"rule.emacsKeys.summary" = "%ld cursor moves today";
+"rule.emacsKeys.summary" = "%ld arrow-crawls today";
 
 /* Inbox / detail / celebration */
 "inbox.title" = "Suggestions";

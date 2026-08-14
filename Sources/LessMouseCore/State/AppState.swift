@@ -155,14 +155,10 @@ public final class AppState: ObservableObject {
             .store(in: &cancellables)
 
         // Nothing is recorded for an excluded app, and bursts must not be
-        // stitched across the exclusion boundary either. Republish so the
-        // behavior ledger drops any activations already attributed to it.
+        // stitched across the exclusion boundary either.
         settings.$excludedApps
             .dropFirst()
-            .sink { [weak self] _ in
-                self?.detector.resetAll()
-                self?.schedulePublish()
-            }
+            .sink { [weak self] _ in self?.detector.resetAll() }
             .store(in: &cancellables)
     }
 
@@ -211,33 +207,19 @@ public final class AppState: ObservableObject {
 
     /// Coarse activity facts the engine and the card summaries read:
     /// how many days a browser was frontmost, how many days 2+ apps were.
-    /// Excluded apps are invisible here — same contract as the key path.
     private func computeActivityDays() -> ActivityDays {
         let ownBundleID = Bundle.main.bundleIdentifier
         var days = ActivityDays()
         for day in store.daySummaries().values {
-            let fronted = day.apps
-                .filter { $0.value.activations > 0
-                    && $0.key != ownBundleID
-                    && !settings.isExcluded($0.key) }
-                .map(\.key)
+            let fronted = day.apps.filter { $0.value.activations > 0 }.map(\.key)
             if fronted.contains(where: BrowserCatalog.isBrowser) {
                 days.browser += 1
             }
-            if fronted.count >= 2 {
+            if fronted.filter({ $0 != ownBundleID }).count >= 2 {
                 days.multiApp += 1
             }
         }
         return days
-    }
-
-    /// Today's activations, minus LessMouse and anything the user excluded.
-    private func computeTodayAppSwitches() -> Int {
-        let ownBundleID = Bundle.main.bundleIdentifier
-        let day = store.daySummaries()[store.currentDayKey()]
-        return day?.apps
-            .filter { $0.key != ownBundleID && !settings.isExcluded($0.key) }
-            .values.map(\.activations).reduce(0, +) ?? 0
     }
 
     // MARK: - The pipeline
@@ -251,10 +233,6 @@ public final class AppState: ObservableObject {
     /// the throttled publish.
     public func ingest(_ event: KeyEvent) {
         guard !settings.isPaused, isTracking else { return }
-
-        // Exclusion is a hard boundary: drop the event, end any burst in
-        // progress, and remember the app so returning to the previous one
-        // is also a fresh window — not a stitch across the gap.
         if settings.isExcluded(event.application) {
             detector.resetAll()
             lastEventApp = event.application
@@ -262,9 +240,6 @@ public final class AppState: ObservableObject {
         }
         guard let signature = KeySignatureFilter.signature(for: event) else { return }
 
-        // Adoption and burst windows are per calendar day. Roll before
-        // either reads todayComboCounts, otherwise yesterday's totals
-        // impersonate today's on the first stroke after midnight.
         rollDayIfNeeded()
 
         // Bursts belong to one app at a time: switching frontmost apps ends
@@ -283,7 +258,6 @@ public final class AppState: ObservableObject {
         if let adoptedRuleID = engine.onComboObserved(
             signature: storageKey,
             todayCount: todayComboCounts[storageKey] ?? 0,
-            dayKey: lastDayKey,
             states: &suggestionStates) {
             celebration = adoptedRuleID
             refreshUnreadCount()
@@ -315,21 +289,20 @@ public final class AppState: ObservableObject {
         }
     }
 
-    /// If the store's clock has crossed midnight since we last looked,
-    /// drop yesterday's incremental counts so adoption math cannot see them.
     private func rollDayIfNeeded() {
-        let dayKey = store.currentDayKey()
-        guard dayKey != lastDayKey else { return }
-        lastDayKey = dayKey
+        let snapshot = store.todaySnapshot()
+        guard snapshot.dayKey != lastDayKey else { return }
+        lastDayKey = snapshot.dayKey
         store.prune()
-        todayComboCounts = store.todaySnapshot().combos
+        todayComboCounts = snapshot.combos
         detector.resetAll()
     }
 
     private func refreshToday() {
         rollDayIfNeeded()
         today = store.todaySnapshot()
-        todayAppSwitches = computeTodayAppSwitches()
+        let activationSummary = store.todayActivationSummary()
+        todayAppSwitches = activationSummary.total
         activityDays = computeActivityDays()
         evaluateSuggestions()
         store.flushIfDue()

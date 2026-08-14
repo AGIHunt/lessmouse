@@ -54,11 +54,8 @@ public final class SuggestionEngine {
                 guard let state = states[rule.id],
                       shouldRenag(state, dayKey: context.dayKey, cooldownDays: rule.cooldownDays)
                 else { continue }
-                // Recapture today's counts so "already using it today"
-                // still does not count as coached after a re-nag.
                 states[rule.id]?.status = .unread
                 states[rule.id]?.lastNotifiedDayKey = context.dayKey
-                states[rule.id]?.adoptionBaseline = baseline(for: rule, context: context)
                 changes.append(.promotedAgain(rule.id))
             }
         }
@@ -125,23 +122,13 @@ public final class SuggestionEngine {
     /// Event path: the pipeline just counted `signature`, bringing today to
     /// `todayCount`. If that crosses a live card's baseline, the card is
     /// adopted. Returns the rule worth celebrating.
-    ///
-    /// `dayKey` is today's calendar day. The baseline is only meaningful on
-    /// the day it was captured (`lastNotifiedDayKey`); on a later day any
-    /// use of the taught shortcut is adoption — the card already existed.
     public func onComboObserved(signature: String,
                                 todayCount: Int,
-                                dayKey: String,
                                 states: inout [String: SuggestionState]) -> String? {
         for rule in rules where rule.watchForAdoption.contains(signature) {
             guard let state = states[rule.id],
                   state.status == .unread || state.status == .read else { continue }
-            let baseline: Int
-            if let captured = state.lastNotifiedDayKey, captured != dayKey {
-                baseline = 0
-            } else {
-                baseline = state.adoptionBaseline[signature] ?? 0
-            }
+            let baseline = state.adoptionBaseline[signature] ?? 0
             if todayCount > baseline {
                 states[rule.id]?.status = .adopted
                 states[rule.id]?.celebrated = false

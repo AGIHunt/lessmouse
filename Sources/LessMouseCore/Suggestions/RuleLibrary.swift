@@ -77,9 +77,6 @@ public enum RuleLibrary {
         ),
         SuggestionRule(
             id: "emacs-keys",
-            // Same family as hop-by-word, but a higher bar: three bursts
-            // teach ⌥←/→; six means the crawl is a fixture and the Emacs
-            // keys every Mac text field already speaks are worth a card.
             trigger: .patternBursts(id: "harrow-burst", dailyMinimum: 6),
             watchForAdoption: ["ctrl+a", "ctrl+e"],
             titleKey: "rule.emacsKeys.title",

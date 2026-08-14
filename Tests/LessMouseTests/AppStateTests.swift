@@ -288,12 +288,11 @@ struct AppStateTests {
         #expect(state.suggestionStates["delete-by-word"]?.status == .dismissed)
     }
 
-    @Test func firstUseTheNextDayStillAdopts() async {
-        // Baseline was 4 same-day uses when the card appeared. After
-        // midnight, a single ⌥⌫ must still count — yesterday's total
-        // must not ride along in todayComboCounts or raise the bar.
+    @Test func dayRollDoesNotCarryYesterdaysCounts() async {
+        // Without a roll, yesterday's 4 + today's 1 would look like
+        // "crossed the baseline" and celebrate by mistake.
         final class Clock: @unchecked Sendable {
-            var date = Date(timeIntervalSince1970: 1_800_000_000) // 2027-01-15 UTC
+            var date = Date(timeIntervalSince1970: 1_800_000_000)
         }
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "UTC")!
@@ -312,12 +311,10 @@ struct AppStateTests {
         }
         await triggerDeleteByWordCard(state)
         await waitUntil(state.unreadCount == 1)
-        #expect(state.suggestionStates["delete-by-word"]?.adoptionBaseline["opt+backspace"] == 4)
 
         clock.date = clock.date.addingTimeInterval(86_400 + 3_600)
         state.ingest(KeyEvent(timestamp: 50, keyCode: 0x33, modifiers: .option,
                               application: "com.apple.Terminal"))
-        #expect(state.celebration == "delete-by-word")
-        #expect(state.suggestionStates["delete-by-word"]?.status == .adopted)
+        #expect(state.celebration == nil)
     }
 }

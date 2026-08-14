@@ -170,17 +170,13 @@ import Testing
         #expect(states["delete-by-word"]?.adoptionBaseline["opt+backspace"] == 0)
 
         let adopted = engine.onComboObserved(signature: "opt+backspace",
-                                             todayCount: 1,
-                                             dayKey: "2027-01-15",
-                                             states: &states)
+                                             todayCount: 1, states: &states)
         #expect(adopted == "delete-by-word")
         #expect(states["delete-by-word"]?.status == .adopted)
 
         // Second use: already adopted, nothing new to celebrate.
         let again = engine.onComboObserved(signature: "cmd+backspace",
-                                           todayCount: 1,
-                                           dayKey: "2027-01-15",
-                                           states: &states)
+                                           todayCount: 1, states: &states)
         #expect(again == nil)
     }
 
@@ -193,9 +189,7 @@ import Testing
         #expect(states["delete-by-word"]?.adoptionBaseline["opt+backspace"] == 4)
 
         let early = engine.onComboObserved(signature: "opt+backspace",
-                                           todayCount: 5,
-                                           dayKey: "2027-01-15",
-                                           states: &states)
+                                           todayCount: 5, states: &states)
         #expect(early == "delete-by-word",
                 "exceeding the baseline by using it more still counts — the shortcut is spreading")
     }
@@ -205,56 +199,8 @@ import Testing
         var states: [String: SuggestionState] = [:]
         // No card has ever been generated: using ⌥⌫ is just good behavior.
         let adopted = engine.onComboObserved(signature: "opt+backspace",
-                                             todayCount: 3,
-                                             dayKey: "2027-01-15",
-                                             states: &states)
+                                             todayCount: 3, states: &states)
         #expect(adopted == nil)
-    }
-
-    @Test func nextDayUseAdoptsAgainstAZeroBaseline() {
-        let engine = engine()
-        var states: [String: SuggestionState] = [:]
-        // Card appeared after the shortcut had already been used 4 times.
-        _ = engine.evaluate(context(patternHits: ["backspace-burst": 3],
-                                    combos: ["opt+backspace": 4]), states: &states)
-        #expect(states["delete-by-word"]?.adoptionBaseline["opt+backspace"] == 4)
-
-        // A single press the next day is adoption: the card already existed,
-        // and yesterday's same-day count must not raise the bar.
-        let adopted = engine.onComboObserved(signature: "opt+backspace",
-                                             todayCount: 1,
-                                             dayKey: "2027-01-16",
-                                             states: &states)
-        #expect(adopted == "delete-by-word")
-    }
-
-    @Test func sameDayMustStillBeatTheCapturedBaseline() {
-        let engine = engine()
-        var states: [String: SuggestionState] = [:]
-        _ = engine.evaluate(context(patternHits: ["backspace-burst": 3],
-                                    combos: ["opt+backspace": 4]), states: &states)
-
-        let held = engine.onComboObserved(signature: "opt+backspace",
-                                          todayCount: 4,
-                                          dayKey: "2027-01-15",
-                                          states: &states)
-        #expect(held == nil)
-    }
-
-    @Test func renagRecapturesTodaysBaseline() {
-        let engine = engine()
-        var states: [String: SuggestionState] = [:]
-        _ = engine.evaluate(context(patternHits: ["backspace-burst": 3],
-                                    combos: ["opt+backspace": 4]), states: &states)
-        engine.markRead("delete-by-word", states: &states)
-
-        _ = engine.evaluate(context(dayKey: "2027-01-19",
-                                    patternHits: ["backspace-burst": 5],
-                                    combos: ["opt+backspace": 1]),
-                            states: &states)
-        #expect(states["delete-by-word"]?.status == .unread)
-        #expect(states["delete-by-word"]?.adoptionBaseline["opt+backspace"] == 1,
-                "re-nag must recapture today's count, not keep day-one's 4")
     }
 
     @Test func emacsKeysNeedSixHarrowBursts() {

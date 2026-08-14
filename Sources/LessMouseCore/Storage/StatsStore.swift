@@ -118,10 +118,14 @@ public final class StatsStore {
 
     // MARK: - Reads
 
+    /// Calendar day the store's clock is currently on — cheap, no snapshot.
+    public func currentDayKey() -> String {
+        Self.dayKey(for: now(), calendar: calendar)
+    }
+
     /// Today's flattened counts, or an empty snapshot if nothing yet.
     public func todaySnapshot() -> DaySnapshot {
-        let dayKey = Self.dayKey(for: now(), calendar: calendar)
-        return snapshot(dayKey: dayKey)
+        snapshot(dayKey: currentDayKey())
     }
 
     /// A specific day's flattened counts (empty if absent).

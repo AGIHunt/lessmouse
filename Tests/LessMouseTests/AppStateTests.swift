@@ -43,13 +43,14 @@ struct AppStateTests {
 
     private func makeState(paused: Bool = false,
                             monitor: StubEventSource = StubEventSource(),
-                            permission: StubPermission = StubPermission()) -> (AppState, StubEventSource, StubPermission) {
+                            permission: StubPermission = StubPermission(),
+                            store: StatsStore? = nil) -> (AppState, StubEventSource, StubPermission) {
         let suite = "lm-tests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
         defaults.set(paused, forKey: "lm.paused")
 
-        let store = StatsStore(
+        let store = store ?? StatsStore(
             directory: FileManager.default.temporaryDirectory
                 .appendingPathComponent("lm-tests-\(UUID().uuidString)"),
             calendar: .current,
@@ -125,6 +126,36 @@ struct AppStateTests {
         await waitUntil(state.today.totalEvents == 1)
 
         #expect(state.today.totalEvents == 1)
+    }
+
+    @Test func excludedAppActivationsAreNotCounted() async {
+        let (state, _, _) = makeState()
+        state.settings.excludedApps = ["com.agilebits.onepassword7"]
+
+        state.noteAppActivation("com.agilebits.onepassword7")
+        state.noteAppActivation("com.apple.Safari")
+        await waitUntil(state.todayAppSwitches == 1)
+
+        #expect(state.todayAppSwitches == 1)
+        #expect(state.activityDays.browser == 1)
+    }
+
+    @Test func burstsDoNotStitchAcrossAnExcludedApp() async {
+        let (state, _, _) = makeState()
+        state.settings.excludedApps = ["com.agilebits.onepassword7"]
+
+        // Four backspaces in Terminal — one short of a burst.
+        for j in 0..<4 {
+            state.ingest(backspace(at: Double(j) * 0.2, app: "com.apple.Terminal"))
+        }
+        // The excluded app is a hard boundary, even though its keys are dropped.
+        state.ingest(backspace(at: 0.9, app: "com.agilebits.onepassword7"))
+        // Back in Terminal: a fifth press must start a new window, not fire.
+        state.ingest(backspace(at: 1.1, app: "com.apple.Terminal"))
+        await waitUntil(state.today.totalEvents == 5)
+
+        #expect(state.today.patterns["backspace-burst"] == nil
+                || state.today.patterns["backspace-burst"] == 0)
     }
 
     @Test func typedTextNeverReachesTheStore() async {
@@ -255,5 +286,38 @@ struct AppStateTests {
         await waitUntil(state.today.totalPatterns >= 8)
         #expect(state.unreadCount == 0)
         #expect(state.suggestionStates["delete-by-word"]?.status == .dismissed)
+    }
+
+    @Test func firstUseTheNextDayStillAdopts() async {
+        // Baseline was 4 same-day uses when the card appeared. After
+        // midnight, a single ⌥⌫ must still count — yesterday's total
+        // must not ride along in todayComboCounts or raise the bar.
+        final class Clock: @unchecked Sendable {
+            var date = Date(timeIntervalSince1970: 1_800_000_000) // 2027-01-15 UTC
+        }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        let clock = Clock()
+        let store = StatsStore(
+            directory: FileManager.default.temporaryDirectory
+                .appendingPathComponent("lm-tests-\(UUID().uuidString)"),
+            calendar: calendar,
+            now: { clock.date })
+
+        let (state, _, _) = makeState(store: store)
+
+        for _ in 0..<4 {
+            state.ingest(KeyEvent(timestamp: 1, keyCode: 0x33, modifiers: .option,
+                                  application: "com.apple.Terminal"))
+        }
+        await triggerDeleteByWordCard(state)
+        await waitUntil(state.unreadCount == 1)
+        #expect(state.suggestionStates["delete-by-word"]?.adoptionBaseline["opt+backspace"] == 4)
+
+        clock.date = clock.date.addingTimeInterval(86_400 + 3_600)
+        state.ingest(KeyEvent(timestamp: 50, keyCode: 0x33, modifiers: .option,
+                              application: "com.apple.Terminal"))
+        #expect(state.celebration == "delete-by-word")
+        #expect(state.suggestionStates["delete-by-word"]?.status == .adopted)
     }
 }

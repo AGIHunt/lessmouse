@@ -33,6 +33,7 @@ public final class KeyboardMonitor: KeyEventSource {
     private var loopSource: CFRunLoopSource?
     private var runLoop: CFRunLoop?
     private var thread: Thread?
+    private var exitSemaphore: DispatchSemaphore?
 
     public init(permission: PermissionChecking, appContext: AppContextProviding) {
         self.permission = permission
@@ -52,7 +53,13 @@ public final class KeyboardMonitor: KeyEventSource {
         // in its run loop, so `start()` can answer synchronously.
         let boot = DispatchSemaphore(value: 0)
         let box = ResultBox()
+        let exitSem = DispatchSemaphore(value: 0)
+        stateLock.lock()
+        self.exitSemaphore = exitSem
+        stateLock.unlock()
+
         let thread = Thread { [weak self] in
+            defer { exitSem.signal() }
             guard let self else {
                 box.store(.failed("monitor released during start"))
                 boot.signal()
@@ -121,15 +128,22 @@ public final class KeyboardMonitor: KeyEventSource {
         stateLock.lock()
         let runLoop = runLoop
         let tap = tap
+        let exitSem = exitSemaphore
         stateLock.unlock()
 
         if let runLoop {
             CFRunLoopStop(runLoop)
+            _ = exitSem?.wait(timeout: .now() + 1.0)
         } else if let tap {
             // Started but never reached its loop — invalidate defensively.
             CFMachPortInvalidate(tap)
+            _ = exitSem?.wait(timeout: .now() + 1.0)
         }
-        thread = nil
+
+        stateLock.lock()
+        self.thread = nil
+        self.exitSemaphore = nil
+        stateLock.unlock()
     }
 
     // MARK: - The C callback

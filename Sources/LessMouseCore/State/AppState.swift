@@ -87,9 +87,8 @@ public final class AppState: ObservableObject {
         }
 
         self.monitor.onEvent = { [weak self] event in
-            // The tap thread hands off immediately; everything downstream is
-            // main-actor. Typing volume is tiny next to a main-queue drain.
-            Task { @MainActor [weak self] in self?.ingest(event) }
+            // Dispatch directly to main queue without spawning a new Task per keystroke.
+            DispatchQueue.main.async { [weak self] in self?.ingest(event) }
         }
 
         observeSettings()

@@ -131,6 +131,12 @@ public final class KeyboardMonitor: KeyEventSource {
         let exitSem = exitSemaphore
         stateLock.unlock()
 
+        // Wait for the thread to finish its teardown, not just to be told to.
+        // `start()` calls `stop()` first, and the old thread's cleanup nils
+        // `tap` / `runLoop` — without the wait that could land after the new
+        // thread has stored its own, leaving a live tap nobody can stop or
+        // re-enable after a timeout. The bound is a safety net; teardown is
+        // a few mach calls and normally completes in microseconds.
         if let runLoop {
             CFRunLoopStop(runLoop)
             _ = exitSem?.wait(timeout: .now() + 1.0)

@@ -288,12 +288,17 @@ public final class AppState: ObservableObject {
         }
     }
 
+    /// Day rollover: prune history, reset per-day machinery, re-derive the
+    /// incremental counts. Runs on every stroke so the first key after
+    /// midnight is judged against today's (empty) baseline rather than
+    /// yesterday's — but only the key comparison is on the hot path; the
+    /// flattened snapshot is taken once, when the day actually changed.
     private func rollDayIfNeeded() {
-        let snapshot = store.todaySnapshot()
-        guard snapshot.dayKey != lastDayKey else { return }
-        lastDayKey = snapshot.dayKey
+        let dayKey = store.todayKey()
+        guard dayKey != lastDayKey else { return }
+        lastDayKey = dayKey
         store.prune()
-        todayComboCounts = snapshot.combos
+        todayComboCounts = store.todaySnapshot().combos
         detector.resetAll()
     }
 

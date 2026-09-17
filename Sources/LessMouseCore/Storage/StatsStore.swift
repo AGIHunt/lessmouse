@@ -120,8 +120,14 @@ public final class StatsStore {
 
     /// Today's flattened counts, or an empty snapshot if nothing yet.
     public func todaySnapshot() -> DaySnapshot {
-        let dayKey = Self.dayKey(for: now(), calendar: calendar)
-        return snapshot(dayKey: dayKey)
+        snapshot(dayKey: todayKey())
+    }
+
+    /// The key today's counts file under. A date-components read, no queue
+    /// hop — cheap enough for the event path, which asks on every stroke to
+    /// notice the day rolling over.
+    public func todayKey() -> String {
+        Self.dayKey(for: now(), calendar: calendar)
     }
 
     /// A specific day's flattened counts (empty if absent).

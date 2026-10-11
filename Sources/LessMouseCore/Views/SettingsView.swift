@@ -64,8 +64,33 @@ struct SettingsView: View {
                     RowDivider()
                     accessibilityRow
                 }
+                RowDivider()
+                noticesRow
             }
         }
+    }
+
+    /// Pop-up notices for arrivals and adoptions.
+    private var noticesRow: some View {
+        ModuleRow(
+            title: Loc.t("settings.notices"),
+            subtitle: Loc.t("settings.notices.hint"),
+            subtitleLines: 2,
+            glyph: {
+                GlyphBadge(state.settings.showsNotices ? .on : .off) {
+                    Image(systemName: "bell.badge")
+                        .font(.system(size: 12, weight: .medium))
+                }
+            },
+            trailing: {
+                Toggle("", isOn: Binding(
+                    get: { state.settings.showsNotices },
+                    set: { state.settings.showsNotices = $0 }))
+                        .toggleStyle(.switch)
+                        .controlSize(.small)
+                        .labelsHidden()
+            }
+        )
     }
 
     /// The menu coach's own switch, with the accessibility door next to it.

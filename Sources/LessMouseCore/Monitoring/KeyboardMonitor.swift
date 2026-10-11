@@ -127,10 +127,14 @@ public final class KeyboardMonitor: KeyEventSource {
             CFRunLoopRemoveSource(runLoop, source, .commonModes)
             CGEvent.tapEnable(tap: tap, enable: false)
             CFMachPortInvalidate(tap)
+            // Only clear what is still ours: if a slow teardown overlaps a
+            // restart, the fields already belong to the new tap.
             self.stateLock.lock()
-            self.tap = nil
-            self.loopSource = nil
-            self.runLoop = nil
+            if self.tap === tap {
+                self.tap = nil
+                self.loopSource = nil
+                self.runLoop = nil
+            }
             self.stateLock.unlock()
         }
         thread.name = "lm.eventtap"
@@ -143,8 +147,24 @@ public final class KeyboardMonitor: KeyEventSource {
         thread.start()
         self.thread = thread
 
-        boot.wait()
+        // Bounded: tapCreate talks to the TCC daemon, which can stall right
+        // after a grant or revoke, and this wait is on the main thread.
+        guard boot.wait(timeout: .now() + 3) == .success else {
+            return .failed("event tap did not start in time")
+        }
         return box.load()
+    }
+
+    /// The tap exists and the system still has it enabled. A tap the system
+    /// disabled (timeout, user input) and could not be re-enabled, or one
+    /// invalidated when Input Monitoring was revoked, answers false — the
+    /// cue for the owner to rebuild it.
+    public var isAlive: Bool {
+        stateLock.lock()
+        let tap = tap
+        stateLock.unlock()
+        guard let tap, CFMachPortIsValid(tap) else { return false }
+        return CGEvent.tapIsEnabled(tap: tap)
     }
 
     public func stop() {
@@ -183,7 +203,10 @@ public final class KeyboardMonitor: KeyEventSource {
         guard let userInfo else { return Unmanaged.passUnretained(event) }
         let monitor = Unmanaged<KeyboardMonitor>.fromOpaque(userInfo).takeUnretainedValue()
 
-        if type == .tapDisabledByTimeout {
+        // Both ways the system switches a tap off: re-enable at once. If that
+        // does not take (permission gone), `isAlive` reports it and the owner
+        // rebuilds the tap.
+        if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
             monitor.stateLock.lock()
             let tap = monitor.tap
             monitor.stateLock.unlock()

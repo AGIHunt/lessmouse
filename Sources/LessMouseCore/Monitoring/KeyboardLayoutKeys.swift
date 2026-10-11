@@ -29,6 +29,13 @@ import Carbon.HIToolbox
 ///
 /// The map is built once per layout and cached: 128 keycodes is a fraction of a
 /// millisecond, and the layout changes only when the user changes it.
+///
+/// **Threading.** The Text Input Sources API (`TISCopyCurrentKeyboardLayoutInputSource`
+/// and friends) is main-thread-only on current macOS: called from elsewhere it
+/// can trip a libdispatch main-queue assertion and take the process down. The
+/// menu coach reads menus on a background queue, so the map is built on the
+/// main thread — at `prepare()`, and again whenever the selected input source
+/// changes — and the background lookup only ever reads the stored result.
 enum KeyboardLayoutKeys {
     /// What a menu's printed character resolves to: the key it lives on, and
     /// whether that key has to be pressed with ⇧ to produce it.
@@ -50,20 +57,50 @@ enum KeyboardLayoutKeys {
     // MARK: - The map
 
     private static let lock = NSLock()
-    private static var cached: (inputSource: String, map: [Character: Answer])?
+    private static var cached: [Character: Answer]?
+    nonisolated(unsafe) private static var observer: NSObjectProtocol?
 
+    /// Build the map now and keep it current. Main thread; call once at launch.
+    @MainActor
+    static func prepare() {
+        rebuild()
+        guard observer == nil else { return }
+        observer = DistributedNotificationCenter.default().addObserver(
+            forName: NSNotification.Name(kTISNotifySelectedKeyboardInputSourceChanged as String),
+            object: nil, queue: .main
+        ) { _ in
+            MainActor.assumeIsolated { rebuild() }
+        }
+    }
+
+    /// Re-read the current layout. Main thread only — this is the one place
+    /// the TIS API is called.
+    @MainActor
+    static func rebuild() {
+        // Can be nil mid-switch or at the login window; keep the old map then.
+        guard let unmanaged = TISCopyCurrentKeyboardLayoutInputSource() else { return }
+        let built = build(source: unmanaged.takeRetainedValue())
+        lock.lock()
+        cached = built
+        lock.unlock()
+    }
+
+    /// The stored map, from any thread. Before `prepare()` has run (tests,
+    /// tools) it is built on demand — on the main thread, hopping there if
+    /// needed, never on the caller's.
     private static func map() -> [Character: Answer] {
         lock.lock()
+        let current = cached
+        lock.unlock()
+        if let current { return current }
+        if Thread.isMainThread {
+            MainActor.assumeIsolated { rebuild() }
+        } else {
+            DispatchQueue.main.sync { MainActor.assumeIsolated { rebuild() } }
+        }
+        lock.lock()
         defer { lock.unlock() }
-
-        let source = TISCopyCurrentKeyboardLayoutInputSource().takeRetainedValue()
-        let identity = TISGetInputSourceProperty(source, kTISPropertyInputSourceID)
-            .map { String(unsafeBitCast($0, to: CFString.self)) } ?? ""
-        if let cached, cached.inputSource == identity { return cached.map }
-
-        let built = build(source: source)
-        cached = (identity, built)
-        return built
+        return cached ?? [:]
     }
 
     private static func build(source: TISInputSource) -> [Character: Answer] {

@@ -20,6 +20,9 @@ public protocol KeyEventSource: AnyObject {
 
     /// Begin observing. `.needsPermission` is a normal outcome on a fresh
     /// machine, not an error — the UI turns it into the permission page.
+    /// Still delivering? See the extension for the default.
+    var isAlive: Bool { get }
+
     func start() -> TapStartResult
 
     /// Stop observing and tear the tap down completely. "Paused" means
@@ -30,6 +33,11 @@ public protocol KeyEventSource: AnyObject {
 /// Defaults that keep a keyboard-only implementation of `KeyEventSource`
 /// complete. The real monitor overrides both.
 extension KeyEventSource {
+    /// Whether the running source is still delivering — false once the
+    /// system has disabled or invalidated it. Sources that cannot tell (test
+    /// stubs) answer true.
+    public var isAlive: Bool { true }
+
     public var onMenuClick: ((MenuClick) -> Void)? {
         get { nil }
         set { }

@@ -126,4 +126,8 @@
 "settings.eraseAll.confirm" = "Tap confirm to erase everything. The old file is archived on disk.";
 "settings.privacyNote" = "All data stays on this Mac. LessMouse has no network code at all — the repo is the proof.";
 
-
+/* Pop-up notices (NoticePresenter): a short toast under the menu bar icon. */
+"notice.new.title" = "New suggestion";
+"notice.adopted.title" = "You've got %@";
+"settings.notices" = "Pop-up notices";
+"settings.notices.hint" = "A short animated note under the menu bar icon when a new suggestion arrives or one is adopted.";

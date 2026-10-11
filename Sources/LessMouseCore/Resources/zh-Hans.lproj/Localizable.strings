@@ -80,7 +80,7 @@
    正文对所有命令都一样；小结里写出快捷键和今日次数。 */
 "rule.menuClick.title" = "菜单命令也有快捷键";
 "rule.menuClick.body" = "你打开的每个菜单其实都标着快捷键——就印在命令旁边，只是没人指出来。菜单是用来发现命令的；知道之后，用键盘更快，手也不用挪地方。";
-"rule.menuClick.summary" = "今天你用鼠标点了 %ld 次 %@";
+"rule.menuClick.summary" = "今天你用鼠标点了 %2$ld 次 %1$@";
 
 /* 收件箱 / 详情 / 庆祝 */
 "inbox.title" = "建议";
@@ -125,4 +125,8 @@
 "settings.eraseAll.confirm" = "再次点击确认清除。旧文件会保留在磁盘上。";
 "settings.privacyNote" = "所有数据只留在这台 Mac 上。LessMouse 没有任何网络代码——仓库本身就是证明。";
 
-
+/* 弹出提示（NoticePresenter）：菜单栏图标下方的短暂提示。 */
+"notice.new.title" = "新建议";
+"notice.adopted.title" = "已学会 %@";
+"settings.notices" = "弹出提示";
+"settings.notices.hint" = "出现新建议、或建议被采纳时，在菜单栏图标下方短暂弹出一条带动效的提示。";

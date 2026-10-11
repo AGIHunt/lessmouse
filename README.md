@@ -47,6 +47,11 @@ fires.
   and you get a card for it. No list of apps, no list of menus: every app
   already knows its own shortcuts, and LessMouse asks the app. Off until you
   turn it on in settings.
+- **Pop-up notices** — a short animated note slides down under the menu bar
+  icon when a new suggestion arrives (its glyph ripples, the keycaps to learn
+  sit beside it) and when you adopt one (a check pops in with a small burst).
+  No permission, never takes focus; click it to open the panel. Honours
+  Reduce Motion; switch it off in Settings.
 - **Adoption detection** — press a taught shortcut after reading its card and
   the celebration banner fires, once, ever. The stats page tracks how many of
   the coached shortcuts you've taken up.

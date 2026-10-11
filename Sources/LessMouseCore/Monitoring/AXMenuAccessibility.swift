@@ -123,7 +123,15 @@ public final class AXMenuAccessibility: MenuAccessibilityReading {
     /// it, so a menu bar item's children are not yet the commands. Stepping
     /// through that one wrapper is what makes a menu bar item's menu look
     /// like a flat list of commands to the tracker.
-    private func children(of element: AXUIElement) -> [MenuItemSnapshot] {
+    ///
+    /// Bounded twice over, because the tree belongs to another process and
+    /// may be malformed: only the one AppKit wrapper level is flattened (an
+    /// `AXMenu` nested inside an `AXMenu` is not followed — that recursion,
+    /// on a cyclic or deep tree, overflowed the reader's stack), and at most
+    /// `maxItems` elements are read. A read that times out stops the walk:
+    /// the timeout is per element, so a hung app would otherwise cost a full
+    /// timeout for every remaining item.
+    private func children(of element: AXUIElement, unwrapDepth: Int = 0) -> [MenuItemSnapshot] {
         Self.arm(element)
         var raw: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &raw) == .success,
@@ -131,10 +139,12 @@ public final class AXMenuAccessibility: MenuAccessibilityReading {
         else { return [] }
 
         var items: [MenuItemSnapshot] = []
-        for child in childElements {
-            let facts = Self.facts(of: child)
+        for child in childElements.prefix(Self.maxItems) {
+            guard let facts = Self.facts(of: child) else { break }
             if facts.role == kAXMenuRole {
-                items.append(contentsOf: children(of: child))
+                if unwrapDepth == 0 {
+                    items.append(contentsOf: children(of: child, unwrapDepth: 1))
+                }
                 continue
             }
             guard let frame = facts.frame else { continue }
@@ -152,12 +162,18 @@ public final class AXMenuAccessibility: MenuAccessibilityReading {
     /// does not support comes back as an error `AXValue` in its slot rather
     /// than as a failed call, so errors are filtered per attribute instead of
     /// losing the whole read.
-    private static func facts(of element: AXUIElement) -> Facts {
+    /// Most elements a single menu read will look at.
+    static let maxItems = 400
+
+    /// nil only when the app stopped answering (timed out) — the caller stops
+    /// walking. Any other failure reads as an element with no facts.
+    private static func facts(of element: AXUIElement) -> Facts? {
         arm(element)
         var values: CFArray?
-        guard AXUIElementCopyMultipleAttributeValues(
-            element, Attribute.allCases.map(\.name) as CFArray, [], &values
-        ) == .success, let values = values as? [AnyObject] else { return Facts() }
+        let result = AXUIElementCopyMultipleAttributeValues(
+            element, Attribute.allCases.map(\.name) as CFArray, [], &values)
+        if result == .cannotComplete { return nil }
+        guard result == .success, let values = values as? [AnyObject] else { return Facts() }
 
         var facts = Facts()
         // The answer array is parallel to the request; a slot the element
@@ -245,7 +261,9 @@ public final class AXMenuAccessibility: MenuAccessibilityReading {
         // indistinguishable from one that means something else.
         guard !carriesAnUnverifiableModifier(mask: mask) else { return nil }
         let modifiers = modifiers(mask: mask)
-        if let keyCode, let key = KeyWhitelist.table[UInt16(keyCode)] {
+        // Another app's number: a negative or oversized keycode is not a key,
+        // and converting it with a trapping initializer would be a crash.
+        if let keyCode, let code = UInt16(exactly: keyCode), let key = KeyWhitelist.table[code] {
             return teachable(key, modifiers: modifiers)
         }
         if let character,
@@ -303,9 +321,9 @@ public final class AXMenuAccessibility: MenuAccessibilityReading {
     /// reads `.maskSecondaryFn`, so adoption detection could never confirm
     /// it. The whole reading is refused instead.
     static func carriesAnUnverifiableModifier(mask: Int) -> Bool {
-        let documented = AXMenuItemModifiers(rawValue: 0b1111)
-        return !AXMenuItemModifiers(rawValue: UInt32(truncatingIfNeeded: mask))
-            .isSubset(of: documented)
+        // Any bit outside the four documented ones — including the sign bit
+        // and anything a 32-bit truncation would have hidden.
+        mask < 0 || mask & ~0b1111 != 0
     }
 
     /// Whether this gesture is one the keyboard half would ever record — the
@@ -327,7 +345,7 @@ public final class AXMenuAccessibility: MenuAccessibilityReading {
     /// `carriesAnUnverifiableModifier` for why dropping the extra bits here
     /// instead would teach the wrong shortcut rather than nothing.
     static func modifiers(mask: Int) -> ModifierSet {
-        let flags = AXMenuItemModifiers(rawValue: UInt32(mask))
+        let flags = AXMenuItemModifiers(rawValue: UInt32(truncatingIfNeeded: mask & 0b1111))
         var modifiers: ModifierSet = flags.contains(.noCommand) ? [] : [.command]
         if flags.contains(.shift) { modifiers.insert(.shift) }
         if flags.contains(.option) { modifiers.insert(.option) }

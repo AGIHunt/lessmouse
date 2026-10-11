@@ -29,8 +29,12 @@ import AppKit
 /// that arrives while a read is in flight simply waits its turn.
 public final class MenuClickTracker {
     private let accessibility: MenuAccessibilityReading
-    private let menuBarStrip: () -> CGRect
+    private let menuBarStrips: () -> [CGRect]
     private let now: () -> Date
+    /// A click older than this when its turn on `reader` comes is dropped,
+    /// with any pending menu: it is being resolved against menus that have
+    /// long since closed (a slow or hung app held the queue).
+    private let staleClickLimit: TimeInterval
     /// How long an opened menu stays interesting. A click arriving after this
     /// landed somewhere else; the menu closed long ago.
     private let menuLifetime: TimeInterval
@@ -54,14 +58,29 @@ public final class MenuClickTracker {
         let openedAt: Date
     }
 
+    /// `menuBarStrips` lists every screen's menu bar: with "Displays have
+    /// separate Spaces" (the default) each display has its own, and a click on
+    /// a secondary display's bar is as much a menu click as one on the main's.
     public init(accessibility: MenuAccessibilityReading,
-                menuBarStrip: @escaping () -> CGRect = { MenuBarGeometry.strip() },
+                menuBarStrips: @escaping () -> [CGRect] = { MenuBarGeometry.strips() },
                 now: @escaping () -> Date = { Date() },
-                menuLifetime: TimeInterval = 8) {
+                menuLifetime: TimeInterval = 8,
+                staleClickLimit: TimeInterval = 1.5) {
         self.accessibility = accessibility
-        self.menuBarStrip = menuBarStrip
+        self.menuBarStrips = menuBarStrips
         self.now = now
         self.menuLifetime = menuLifetime
+        self.staleClickLimit = staleClickLimit
+    }
+
+    /// One menu bar only — for tests and tools that model a single screen.
+    public convenience init(accessibility: MenuAccessibilityReading,
+                            menuBarStrip: @escaping () -> CGRect,
+                            now: @escaping () -> Date = { Date() },
+                            menuLifetime: TimeInterval = 8) {
+        self.init(accessibility: accessibility,
+                  menuBarStrips: { [menuBarStrip()] },
+                  now: now, menuLifetime: menuLifetime)
     }
 
     /// Feed one left mouse press. The signature — when the press chose a menu
@@ -73,9 +92,16 @@ public final class MenuClickTracker {
         // The menu bar's rectangle comes from AppKit, which belongs to the
         // caller's thread — the main actor in production — and not to the
         // reader queue below.
-        let strip = menuBarStrip()
+        let strips = menuBarStrips()
+        let clickedAt = now()
         reader.async { [self] in
-            let signature = resolve(at: point, app: app, pid: pid, within: strip)
+            let signature: String?
+            if now().timeIntervalSince(clickedAt) > staleClickLimit {
+                pending = nil
+                signature = nil
+            } else {
+                signature = resolve(at: point, app: app, pid: pid, within: strips)
+            }
             Task { @MainActor in completion(signature) }
         }
     }
@@ -94,7 +120,7 @@ public final class MenuClickTracker {
 
     /// The two-click state machine. Runs on `reader`; touches nothing that
     /// belongs to the main actor.
-    private func resolve(at point: CGPoint, app: String?, pid: pid_t?, within strip: CGRect) -> String? {
+    private func resolve(at point: CGPoint, app: String?, pid: pid_t?, within strips: [CGRect]) -> String? {
         // Another app's menu is never this app's habit, and a menu left open
         // by the app we just left must not be resolved into it.
         if app != lastApp {
@@ -104,7 +130,7 @@ public final class MenuClickTracker {
 
         // A press in the menu bar strip is always a menu bar press: the
         // system menu bar owns that strip outright, whatever is under it.
-        if strip.contains(point) {
+        if strips.contains(where: { $0.contains(point) }) {
             return menuBarClick(at: point, app: app, pid: pid)
         }
 
@@ -166,9 +192,33 @@ public final class MenuClickTracker {
 /// Where the system menu bar is, in the coordinate space a `CGEvent` reports
 /// (global display points, top-left origin — not AppKit's bottom-left one).
 public enum MenuBarGeometry {
+    /// Every screen's menu bar, in the coordinate space a `CGEvent` reports
+    /// (global display points, top-left origin — not AppKit's bottom-left).
+    ///
+    /// One strip per screen, not just the main one: with "Displays have
+    /// separate Spaces" on (the default) each display has its own menu bar,
+    /// and an app whose window is on a secondary display shows its menus
+    /// there. Including a screen that turns out to have no bar costs nothing:
+    /// a click there is hit-tested against the app's real menu-bar frames and
+    /// simply matches none. Main thread (AppKit).
+    public static func strips() -> [CGRect] {
+        let screens = NSScreen.screens
+        guard !screens.isEmpty else { return [strip()] }
+        return screens.compactMap { screen in
+            guard let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber
+            else { return nil }
+            let bounds = CGDisplayBounds(CGDirectDisplayID(number.uint32Value))
+            // The bar's height on *this* screen: what the visible frame gives
+            // up at the top. Zero when the bar auto-hides; the revealed bar
+            // still takes the usual height then.
+            let measured = screen.frame.maxY - screen.visibleFrame.maxY
+            let height = measured > 0 ? measured : menuBarHeight()
+            return CGRect(x: bounds.minX, y: bounds.minY, width: bounds.width, height: height)
+        }
+    }
+
+    /// The main display's bar only. Kept for callers that model one screen.
     public static func strip() -> CGRect {
-        // The menu bar lives on the primary display, whose Quartz bounds
-        // start at the top-left corner of the global display space.
         let bounds = CGDisplayBounds(CGMainDisplayID())
         return CGRect(x: bounds.minX, y: bounds.minY,
                       width: bounds.width, height: menuBarHeight())

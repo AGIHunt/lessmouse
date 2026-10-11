@@ -14,6 +14,7 @@ public final class SettingsStore: ObservableObject {
         static let excludedApps = "lm.excludedApps"
         static let launchAtLogin = "lm.launchAtLogin"
         static let menuCoach = "lm.menuCoach"
+        static let notices = "lm.notices"
     }
 
     private let defaults: UserDefaults
@@ -60,6 +61,15 @@ public final class SettingsStore: ObservableObject {
         }
     }
 
+    /// Pop-up notices when a card arrives or a card is adopted. On by default:
+    /// they carry no new permission and are the only way a user who never
+    /// opens the popover finds out the coach has something to say.
+    @Published public var showsNotices: Bool {
+        didSet {
+            if showsNotices != oldValue { defaults.set(showsNotices, forKey: Key.notices) }
+        }
+    }
+
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         self.isPaused = defaults.bool(forKey: Key.paused)
@@ -70,6 +80,9 @@ public final class SettingsStore: ObservableObject {
         self.isMenuCoachEnabled = defaults.object(forKey: Key.menuCoach) == nil
             ? false
             : defaults.bool(forKey: Key.menuCoach)
+        self.showsNotices = defaults.object(forKey: Key.notices) == nil
+            ? true
+            : defaults.bool(forKey: Key.notices)
     }
 
     public func isExcluded(_ bundleID: String?) -> Bool {

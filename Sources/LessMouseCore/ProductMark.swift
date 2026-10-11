@@ -11,11 +11,13 @@ public enum ProductMark {
     /// than that is scaled down and visually shrinks next to its neighbours.
     static let size: CGFloat = 18
 
-    public static var menuBar: NSImage? {
+    /// Loaded once. The menu bar label is re-evaluated on every publish;
+    /// re-reading the PNG from disk each time was pure waste.
+    public static let menuBar: NSImage? = {
         guard let url = Bundle.module.url(forResource: "MenuBarIcon", withExtension: "png"),
               let image = NSImage(contentsOf: url) else { return nil }
         image.isTemplate = true
         image.size = NSSize(width: size, height: size)
         return image
-    }
+    }()
 }

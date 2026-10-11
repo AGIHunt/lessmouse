@@ -16,6 +16,9 @@ public final class StatsStore {
     private var root = StatsRoot()
     private var suggestionStates: [String: SuggestionState] = [:]
     private var dirty = false
+    /// Bumped on every mutation, so a flush can tell whether what it wrote is
+    /// still everything there is.
+    private var generation = 0
     private var lastFlush: Date?
 
     private let flushInterval: TimeInterval = 30
@@ -87,6 +90,7 @@ public final class StatsStore {
                 .apps[key, default: AppStats()]
                 .combos[signature, default: 0] += 1
             dirty = true
+            generation &+= 1
         }
     }
 
@@ -100,6 +104,7 @@ public final class StatsStore {
                 .apps[key, default: AppStats()]
                 .patterns[patternID, default: 0] += 1
             dirty = true
+            generation &+= 1
         }
     }
 
@@ -113,6 +118,7 @@ public final class StatsStore {
                 .apps[key, default: AppStats()]
                 .activations += 1
             dirty = true
+            generation &+= 1
         }
     }
 
@@ -129,6 +135,7 @@ public final class StatsStore {
                 .apps[key, default: AppStats()]
                 .menuCommands[signature, default: 0] += 1
             dirty = true
+            generation &+= 1
         }
     }
 
@@ -281,16 +288,20 @@ public final class StatsStore {
     /// Unconditional write. Atomic, with file protection, so a crash mid-write
     /// can never leave a half file.
     public func flush() {
-        let data: Data? = queue.sync { [self] in
+        let snapshot: (data: Data, generation: Int)? = queue.sync { [self] in
             lastFlush = now()
-            guard dirty else { return nil }
-            return try? Self.encoder.encode(root)
+            guard dirty, let data = try? Self.encoder.encode(root) else { return nil }
+            return (data, generation)
         }
-        guard let data else { return }
+        guard let snapshot else { return }
         do {
-            try data.write(to: storageURL,
-                           options: [.atomic, .completeFileProtection])
-            queue.async { [self] in dirty = false }
+            try snapshot.data.write(to: storageURL,
+                                    options: [.atomic, .completeFileProtection])
+            // Increments that landed between the encode and here are not in
+            // the file; leave them dirty for the next tick.
+            queue.async { [self] in
+                if generation == snapshot.generation { dirty = false }
+            }
         } catch {
             // Losing today's counts to a full disk is bad; losing the app is
             // worse. The dirty flag stays set and the next tick tries again.

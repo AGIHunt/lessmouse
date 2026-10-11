@@ -15,6 +15,7 @@ public final class AppState: ObservableObject {
     private let permission: PermissionChecking
     private let detector: PatternDetector
     private let engine: SuggestionEngine
+    private let menuTracker: MenuClickTracker
 
     // Published UI state.
     @Published public private(set) var permissionPhase: PermissionPhase = .needsPermission
@@ -28,6 +29,14 @@ public final class AppState: ObservableObject {
     @Published public private(set) var todayAppSwitches = 0
     /// Days of coarse activity signals the unused-while-active triggers read.
     @Published public private(set) var activityDays = ActivityDays()
+    /// Every card the UI may show: the book, plus the menu coach's
+    /// runtime-generated cards for the commands the user's own apps have
+    /// revealed. Equal to the book alone while the coach is off.
+    @Published public private(set) var rules: [SuggestionRule] = RuleLibrary.all
+    /// Whether the menu coach can read menus right now. False with the coach
+    /// on means "Accessibility was never granted" — the coach is dormant, and
+    /// Settings offers the door to it.
+    @Published public private(set) var isMenuCoachAvailable = false
 
     /// Browser-frontmost days and multi-app days, as one published fact.
     public struct ActivityDays: Equatable {
@@ -41,6 +50,10 @@ public final class AppState: ObservableObject {
     // Internals.
     private var cancellables: Set<AnyCancellable> = []
     private var permissionPoller: Timer?
+    /// Watches for the Accessibility grant the menu coach needs, but only
+    /// while the coach is on *and* missing it — the poller's whole job is to
+    /// notice the user coming back from System Settings.
+    private var menuCoachPoller: Timer?
     private var publishScheduled = false
     private var lastDayKey = ""
     /// Today's counts, kept incrementally for the event-driven adoption path
@@ -63,6 +76,7 @@ public final class AppState: ObservableObject {
                 permission: PermissionChecking? = nil,
                 detector: PatternDetector? = nil,
                 engine: SuggestionEngine? = nil,
+                menuTracker: MenuClickTracker? = nil,
                 publishDelay: TimeInterval = 1) {
         let settings = settings ?? SettingsStore()
         self.store = store ?? StatsStore(
@@ -77,7 +91,12 @@ public final class AppState: ObservableObject {
             permission: self.permission,
             appContext: appContext)
         self.detector = detector ?? PatternDetector(specs: PatternLibrary.defaults)
-        self.engine = engine ?? SuggestionEngine(rules: RuleLibrary.all)
+        self.engine = engine ?? SuggestionEngine(
+            rules: RuleLibrary.all,
+            dynamicRuleFor: { MenuRuleFactory.rule(for: $0) })
+        // The menu coach's half of the pipeline. Its accessibility reader is
+        // the real one unless a test hands over a fake.
+        self.menuTracker = menuTracker ?? MenuClickTracker(accessibility: AXMenuAccessibility())
         self.publishDelay = publishDelay
 
         // Wired after every stored property is set: the closure captures
@@ -89,6 +108,10 @@ public final class AppState: ObservableObject {
         self.monitor.onEvent = { [weak self] event in
             // Dispatch directly to main queue without spawning a new Task per keystroke.
             DispatchQueue.main.async { [weak self] in self?.ingest(event) }
+        }
+
+        self.monitor.onMenuClick = { [weak self] click in
+            DispatchQueue.main.async { [weak self] in self?.ingestMenuClick(click) }
         }
 
         observeSettings()
@@ -109,7 +132,9 @@ public final class AppState: ObservableObject {
         lastDayKey = snapshot.dayKey
         todayComboCounts = snapshot.combos
         suggestionStates = store.loadSuggestionStates()
+        refreshRules()
         refreshUnreadCount()
+        refreshMenuCoachAvailability()
         refreshToday()
 
         guard !settings.isPaused else {
@@ -120,6 +145,9 @@ public final class AppState: ObservableObject {
     }
 
     private func startMonitor() {
+        // The tap only watches the mouse while the menu coach is on, so a
+        // user who never wants it is watched for the keyboard alone.
+        monitor.watchesMouse = settings.isMenuCoachEnabled
         let result = monitor.start()
         switch result {
         case .running:
@@ -159,6 +187,18 @@ public final class AppState: ObservableObject {
             .dropFirst()
             .sink { [weak self] _ in self?.detector.resetAll() }
             .store(in: &cancellables)
+
+        // Turning the coach on or off changes what the tap watches, so the tap
+        // is rebuilt — the same restart the pause switch already performs.
+        settings.$isMenuCoachEnabled
+            .dropFirst()
+            .removeDuplicates()
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.refreshMenuCoachAvailability()
+                if !self.settings.isPaused { self.startMonitor() }
+            }
+            .store(in: &cancellables)
     }
 
     // MARK: - Permission
@@ -170,6 +210,19 @@ public final class AppState: ObservableObject {
     public func openPermissionSettings() {
         permission.openSettings()
         permission.promptOnce()
+    }
+
+    /// Walk the user to the Accessibility pane — the permission the menu coach
+    /// reads menus with.
+    ///
+    /// A door, not a knock: nothing is requested from here, so a user who
+    /// never opens Settings is never asked about a permission the keyboard
+    /// half of the app does not need.
+    public func openAccessibilitySettings() {
+        let accessibility = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+        if let url = URL(string: accessibility) {
+            NSWorkspace.shared.open(url)
+        }
     }
 
     /// Poll while ungranted; the user grants in System Settings, not here.
@@ -190,6 +243,41 @@ public final class AppState: ObservableObject {
     private func stopPermissionPolling() {
         permissionPoller?.invalidate()
         permissionPoller = nil
+    }
+
+    /// Re-read whether menus are readable, and keep watching only while they
+    /// are not. Self-limiting: the moment the grant lands the timer stops.
+    private func refreshMenuCoachAvailability() {
+        // Off means off, all the way down: not even the trust check runs, so a
+        // user who never turns the coach on is never asked about another app's
+        // UI by anything LessMouse does.
+        guard settings.isMenuCoachEnabled else {
+            isMenuCoachAvailable = false
+            stopMenuCoachPolling()
+            return
+        }
+        isMenuCoachAvailable = menuTracker.canReadMenus
+        let shouldPoll = !isMenuCoachAvailable
+        if shouldPoll, menuCoachPoller == nil {
+            let timer = Timer(timeInterval: 1.5, repeats: true) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    guard let self, self.settings.isMenuCoachEnabled else {
+                        self?.stopMenuCoachPolling()
+                        return
+                    }
+                    self.refreshMenuCoachAvailability()
+                }
+            }
+            RunLoop.main.add(timer, forMode: .common)
+            menuCoachPoller = timer
+        } else if !shouldPoll {
+            stopMenuCoachPolling()
+        }
+    }
+
+    private func stopMenuCoachPolling() {
+        menuCoachPoller?.invalidate()
+        menuCoachPoller = nil
     }
 
     // MARK: - Behavior signals
@@ -274,6 +362,28 @@ public final class AppState: ObservableObject {
 
     private var lastEventApp: String?
 
+    /// Single entry point for left mouse presses — the menu coach's half of
+    /// the pipeline.
+    ///
+    /// Everything interesting happens inside the tracker: it decides whether
+    /// the press chose a menu command. Reading a menu costs nothing at all for
+    /// a click that was not in the menu bar, and the read itself happens off
+    /// the main actor — this returns at once, and the signature comes back on
+    /// the main actor when the app being read has answered.
+    public func ingestMenuClick(_ click: MenuClick) {
+        guard settings.isMenuCoachEnabled, !settings.isPaused, isTracking else { return }
+        // Our own popover and our own menu bar hold nothing to coach.
+        guard click.application != Bundle.main.bundleIdentifier,
+              !settings.isExcluded(click.application) else { return }
+        menuTracker.click(at: click.point, app: click.application, pid: click.pid) {
+            [weak self] signature in
+            guard let self, let signature else { return }
+            self.rollDayIfNeeded()
+            self.store.recordMenuCommand(signature, app: click.application)
+            self.schedulePublish()
+        }
+    }
+
     /// UI publishes are throttled to one per second — a fast typist should
     /// not re-render the popover a dozen times a second it isn't looking at.
     private func schedulePublish() {
@@ -315,8 +425,10 @@ public final class AppState: ObservableObject {
     /// The engine only ever sees a snapshot — no store access, no clock
     /// reads it can't be given, which is what makes it fully testable.
     private func evaluateSuggestions() {
+        refreshRules()
+
         var allTime: [String: Int] = [:]
-        for rule in RuleLibrary.all {
+        for rule in rules {
             for signature in rule.watchForAdoption {
                 allTime[signature] = store.comboCount(signature, dayLimit: nil)
             }
@@ -328,13 +440,38 @@ public final class AppState: ObservableObject {
             comboCountsAllTime: allTime,
             appSwitchesToday: todayAppSwitches,
             browserActiveDays: activityDays.browser,
-            multiAppActiveDays: activityDays.multiApp)
+            multiAppActiveDays: activityDays.multiApp,
+            menuClicksToday: today.menuCommands)
 
         let changes = engine.evaluate(context, states: &suggestionStates)
         if !changes.isEmpty {
             refreshUnreadCount()
             store.saveSuggestionStates(suggestionStates)
         }
+    }
+
+    /// The shelf the UI reads: the book, plus one card per menu command worth
+    /// keeping there. A command qualifies either because it is being clicked
+    /// today, or because the user already has a card for it — an adopted menu
+    /// card must not disappear from the list (or from the stats) the day the
+    /// habit ends.
+    private func refreshRules() {
+        var signatures = Set<String>()
+        if settings.isMenuCoachEnabled {
+            signatures.formUnion(MenuRuleFactory.candidates(
+                menuClicks: today.menuCommands,
+                keyboardUses: today.combos))
+        }
+        signatures.formUnion(suggestionStates.keys
+            .filter { $0.hasPrefix(MenuRuleFactory.idPrefix) }
+            .map { String($0.dropFirst(MenuRuleFactory.idPrefix.count)) })
+        rules = RuleLibrary.all + MenuRuleFactory.rules(for: signatures.sorted())
+    }
+
+    /// The card a rule id names, whether it shipped with the book or was
+    /// generated from a menu the user actually clicked.
+    public func rule(withID id: String) -> SuggestionRule? {
+        rules.first { $0.id == id }
     }
 
     private func refreshUnreadCount() {
@@ -381,6 +518,9 @@ public final class AppState: ObservableObject {
 
     public func popoverDidOpen() {
         refreshToday()
+        // The one moment the user is most likely to have just granted
+        // Accessibility, so this is where it is re-read.
+        refreshMenuCoachAvailability()
     }
 
     public func popoverDidClose() {

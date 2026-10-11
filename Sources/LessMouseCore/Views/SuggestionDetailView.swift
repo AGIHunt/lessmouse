@@ -8,25 +8,30 @@ struct SuggestionDetailView: View {
 
     @EnvironmentObject private var state: AppState
 
-    private var rule: SuggestionRule? { RuleLibrary.rule(withID: ruleID) }
+    private var rule: SuggestionRule? { state.rule(withID: ruleID) }
 
-    /// The number the summary line shows — today's count of whatever woke
-    /// the rule, so the card opens on evidence, not a cold pitch.
-    private var triggerCount: Int {
-        guard let rule else { return 0 }
+    /// The evidence line: today's count of whatever woke the rule, so the
+    /// card opens on evidence, not a cold pitch.
+    private var summary: String {
+        guard let rule else { return "" }
         switch rule.trigger {
         case .patternBursts(let id, _):
-            return state.today.patterns[id] ?? 0
+            return Loc.format(rule.summaryKey, state.today.patterns[id] ?? 0)
         case .comboUsage(let signatures, _):
-            return signatures.reduce(0) { $0 + (state.today.combos[$1] ?? 0) }
+            let total = signatures.reduce(0) { $0 + (state.today.combos[$1] ?? 0) }
+            return Loc.format(rule.summaryKey, total)
         case .unusedWhileActive(_, let activity, _):
             switch activity {
-            case .browserUse: return state.activityDays.browser
-            case .multiAppUse: return state.activityDays.multiApp
-            case .appSwitching: return 0
+            case .browserUse: return Loc.format(rule.summaryKey, state.activityDays.browser)
+            case .multiAppUse: return Loc.format(rule.summaryKey, state.activityDays.multiApp)
+            case .appSwitching: return Loc.format(rule.summaryKey, 0)
             }
         case .activityShare:
-            return state.todayAppSwitches
+            return Loc.format(rule.summaryKey, state.todayAppSwitches)
+        case .menuCommandClicks(let signature, _, _):
+            // Two arguments: which shortcut, and how often the mouse won.
+            return Loc.format(rule.summaryKey, Fmt.signatureDisplay(signature),
+                              state.today.menuCommands[signature] ?? 0)
         }
     }
 
@@ -47,7 +52,7 @@ struct SuggestionDetailView: View {
                                             .font(.system(size: 12, weight: .medium))
                                     }
                                     VStack(alignment: .leading, spacing: 2) {
-                                        Text(Loc.format(rule.summaryKey, triggerCount))
+                                        Text(summary)
                                             .font(Typo.rowSubtitle)
                                             .foregroundStyle(Palette.textTertiary)
                                         KeyCapRow(caps: rule.keyCaps.first ?? [])

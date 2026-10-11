@@ -12,8 +12,12 @@ struct StatsPageView: View {
         state.store.topCombos(dayLimit: 7, limit: 8)
     }
 
+    /// Adopted cards, counted against the cards actually on offer — which
+    /// includes the menu coach's runtime cards, so the two halves of the
+    /// number always agree.
     private var adoptedCount: Int {
-        state.suggestionStates.values.count { $0.status == .adopted }
+        let onOffer = Set(state.rules.map(\.id))
+        return state.suggestionStates.values.count { $0.status == .adopted && onOffer.contains($0.ruleID) }
     }
 
     var body: some View {
@@ -64,7 +68,7 @@ struct StatsPageView: View {
                         VStack(alignment: .leading, spacing: 0) {
                             ModuleTitleRow("stats.progress")
                             ModuleRow(
-                                title: Loc.format("stats.adopted", adoptedCount, RuleLibrary.all.count),
+                                title: Loc.format("stats.adopted", adoptedCount, state.rules.count),
                                 subtitle: Loc.t("stats.adopted.hint"),
                                 glyph: {
                                     GlyphBadge(adoptedCount > 0 ? .on : .off) {
@@ -73,10 +77,10 @@ struct StatsPageView: View {
                                     }
                                 },
                                 trailing: {
-                                    Text("\(adoptedCount)/\(RuleLibrary.all.count)").font(Typo.numeric)
+                                    Text("\(adoptedCount)/\(state.rules.count)").font(Typo.numeric)
                                 },
                                 extra: {
-                                    MeterBar(fraction: Double(adoptedCount) / Double(RuleLibrary.all.count),
+                                    MeterBar(fraction: Double(adoptedCount) / Double(max(state.rules.count, 1)),
                                              tint: Palette.accent)
                                         .padding(.top, 4)
                                 }

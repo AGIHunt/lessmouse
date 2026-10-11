@@ -39,6 +39,20 @@ public struct KeySignature: Hashable, Codable, Sendable {
 /// 3. Everything else — navigation keys (bare or modified) and genuine
 ///    combinations — becomes a signature.
 public enum KeySignatureFilter {
+    /// Rule 2 on its own: whether a key held with these modifiers is a
+    /// *command* rather than text.
+    ///
+    /// Both halves of LessMouse apply this one test. The keyboard half applies
+    /// it to every keystroke, below; the menu half applies it to every shortcut
+    /// it reads out of a menu. It has to be the same test, because a card can
+    /// only teach a gesture the keyboard half would ever record: if the menu
+    /// half uses its own idea of where typing ends, it produces signatures no
+    /// keypress could ever match — a card nobody can adopt, or a card that
+    /// celebrates for something the user did for another reason entirely.
+    public static func isCommand(_ key: SafeKey, modifiers: ModifierSet) -> Bool {
+        modifiers.hasCommandModifier || key.isNavigation
+    }
+
     public static func signature(for event: KeyEvent) -> KeySignature? {
         // Rule 1.
         if event.isAutorepeat { return nil }
@@ -46,9 +60,7 @@ public enum KeySignatureFilter {
         let key = KeyWhitelist.namedKey(for: event.keyCode) ?? KeyWhitelist.rawKey(for: event.keyCode)
 
         // Rule 2. ⌘/⌥/⌃ turn a key into a command; ⇧ alone never does.
-        if !event.modifiers.hasCommandModifier && !key.isNavigation {
-            return nil
-        }
+        guard isCommand(key, modifiers: event.modifiers) else { return nil }
 
         // Rule 3.
         return KeySignature(modifiers: event.modifiers, key: key)

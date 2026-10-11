@@ -9,7 +9,7 @@ struct CelebrationBanner: View {
 
     @EnvironmentObject private var state: AppState
 
-    private var rule: SuggestionRule? { RuleLibrary.rule(withID: ruleID) }
+    private var rule: SuggestionRule? { state.rule(withID: ruleID) }
 
     var body: some View {
         if let rule {

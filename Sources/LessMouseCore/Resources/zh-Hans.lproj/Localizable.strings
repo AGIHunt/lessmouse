@@ -29,6 +29,8 @@
 "today.patterns.hint" = "本可用快捷键替代的连击";
 "today.combos" = "不同组合";
 "today.combos.hint" = "今日使用的 ⌘/⌥/⌃ 组合数";
+"today.menuCommands" = "菜单命令";
+"today.menuCommands.hint" = "今日用鼠标点的、带快捷键的菜单命令数";
 
 "permission.body" = "LessMouse 需要「输入监控」权限来统计你的键盘使用模式（只读监听，不能注入按键）。它只记录快捷键组合与导航键的次数，绝不记录你输入的内容。";
 "permission.onlyRecords" = "只记录这样的计数：";
@@ -74,6 +76,12 @@
 "rule.emacsKeys.body" = "Mac 的每一个文本输入框都认识 Emacs：Control+A 到行首，Control+E 到行尾，Control+P / Control+N 上下移动一行。它们在你够不着方向键的地方依然好用。";
 "rule.emacsKeys.summary" = "今日 %ld 次连按方向键";
 
+/* 唯一一张运行时生成的卡片，来自用户自己的菜单——见 MenuRuleFactory。标题和
+   正文对所有命令都一样；小结里写出快捷键和今日次数。 */
+"rule.menuClick.title" = "菜单命令也有快捷键";
+"rule.menuClick.body" = "你打开的每个菜单其实都标着快捷键——就印在命令旁边，只是没人指出来。菜单是用来发现命令的；知道之后，用键盘更快，手也不用挪地方。";
+"rule.menuClick.summary" = "今天你用鼠标点了 %ld 次 %@";
+
 /* 收件箱 / 详情 / 庆祝 */
 "inbox.title" = "建议";
 "inbox.unread" = "%ld 条新";
@@ -97,6 +105,11 @@
 "settings.tracking" = "追踪";
 "settings.pauseTracking" = "暂停追踪";
 "settings.pauseTracking.hint" = "彻底停止键盘监听——连观察都不观察。";
+"settings.menuCoach" = "也教菜单命令";
+"settings.menuCoach.hint" = "默认关闭。你总用鼠标点的菜单命令，旁边就印着它的快捷键——只读菜单的结构，绝不读里面的文字。需要辅助功能权限；关闭时 LessMouse 既不监听鼠标，也不读任何菜单。";
+"settings.menuCoach.needsAccess" = "需要辅助功能权限";
+"settings.menuCoach.needsAccess.hint" = "LessMouse 只在这里请求这个权限，绝不会自己跳出来。不给也能用：教练只是不出声，键盘那一半完全不受影响。";
+"settings.menuCoach.grant" = "打开系统设置";
 "settings.startup" = "启动";
 "settings.launchAtLogin" = "登录时启动";
 "settings.launchAtLogin.hint" = "登录后即驻留菜单栏。";

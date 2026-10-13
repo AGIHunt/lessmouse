@@ -11,7 +11,7 @@ struct MainView: View {
     /// one look as proof of progress. Dormant and dismissed never appear.
     private var inboxRules: [SuggestionRule] {
         let order: [SuggestionStatus] = [.unread, .read, .adopted]
-        return RuleLibrary.all.filter { rule in
+        return state.rules.filter { rule in
             if let ruleState = state.suggestionStates[rule.id] {
                 return order.contains(ruleState.status)
             }
@@ -82,6 +82,23 @@ struct TodayOverview: View {
                 },
                 trailing: { Text("\(state.today.combos.count)").font(Typo.rowMetric) }
             )
+            // The mouse half of the ledger, and only while it is being
+            // watched: a user who turned the coach off gets the same three
+            // rows they always had.
+            if state.settings.isMenuCoachEnabled {
+                RowDivider()
+                ModuleRow(
+                    title: Loc.t("today.menuCommands"),
+                    subtitle: Loc.t("today.menuCommands.hint"),
+                    glyph: {
+                        GlyphBadge(.off) {
+                            Image(systemName: "cursorarrow.click")
+                                .font(.system(size: 12, weight: .medium))
+                        }
+                    },
+                    trailing: { Text("\(state.today.totalMenuCommands)").font(Typo.rowMetric) }
+                )
+            }
         }
     }
 }
@@ -166,6 +183,10 @@ struct SuggestionInbox: View {
             return Loc.format(rule.summaryKey, days)
         case .activityShare:
             return Loc.format(rule.summaryKey, state.todayAppSwitches)
+        case .menuCommandClicks(let signature, _, _):
+            // Two arguments: which shortcut, and how often the mouse won.
+            return Loc.format(rule.summaryKey, Fmt.signatureDisplay(signature),
+                              state.today.menuCommands[signature] ?? 0)
         }
     }
 }

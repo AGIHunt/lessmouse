@@ -13,6 +13,8 @@ public final class SettingsStore: ObservableObject {
         static let paused = "lm.paused"
         static let excludedApps = "lm.excludedApps"
         static let launchAtLogin = "lm.launchAtLogin"
+        static let menuCoach = "lm.menuCoach"
+        static let notices = "lm.notices"
     }
 
     private let defaults: UserDefaults
@@ -41,11 +43,46 @@ public final class SettingsStore: ObservableObject {
         }
     }
 
+    /// Whether menu commands chosen with the mouse are coached too — the half
+    /// of the book that reads other apps' menus.
+    ///
+    /// Off by default. The permission it needs is checked, never requested, so
+    /// without Accessibility the coach is simply dormant — but a default that
+    /// watches every mouse press in the system asks every user to *decline* a
+    /// feature they never asked for, and the ones who never granted
+    /// Accessibility are watched for nothing at all. So the coach is something
+    /// you turn on: Settings is where a user opts in, and while it is off the
+    /// tap watches the keyboard alone and no accessibility call is made.
+    @Published public var isMenuCoachEnabled: Bool {
+        didSet {
+            if isMenuCoachEnabled != oldValue {
+                defaults.set(isMenuCoachEnabled, forKey: Key.menuCoach)
+            }
+        }
+    }
+
+    /// Pop-up notices when a card arrives or a card is adopted. On by default:
+    /// they carry no new permission and are the only way a user who never
+    /// opens the popover finds out the coach has something to say.
+    @Published public var showsNotices: Bool {
+        didSet {
+            if showsNotices != oldValue { defaults.set(showsNotices, forKey: Key.notices) }
+        }
+    }
+
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         self.isPaused = defaults.bool(forKey: Key.paused)
         self.excludedApps = Set(defaults.stringArray(forKey: Key.excludedApps) ?? [])
         self.launchAtLogin = defaults.bool(forKey: Key.launchAtLogin)
+        // A missing key means "never decided", which is off — the user turns
+        // the coach on in Settings rather than finding it already listening.
+        self.isMenuCoachEnabled = defaults.object(forKey: Key.menuCoach) == nil
+            ? false
+            : defaults.bool(forKey: Key.menuCoach)
+        self.showsNotices = defaults.object(forKey: Key.notices) == nil
+            ? true
+            : defaults.bool(forKey: Key.notices)
     }
 
     public func isExcluded(_ bundleID: String?) -> Bool {

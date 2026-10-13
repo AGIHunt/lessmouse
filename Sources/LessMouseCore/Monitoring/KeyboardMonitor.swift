@@ -24,6 +24,7 @@ import Carbon.HIToolbox.Events
 ///   cached-refused — the UI's answer to that is "relaunch the app").
 public final class KeyboardMonitor: KeyEventSource {
     public var onEvent: ((KeyEvent) -> Void)?
+    public var onMenuClick: ((MenuClick) -> Void)?
 
     private let permission: PermissionChecking
     private let appContext: AppContextProviding
@@ -35,6 +36,11 @@ public final class KeyboardMonitor: KeyEventSource {
     private var thread: Thread?
     private var exitSemaphore: DispatchSemaphore?
 
+    /// Set before `start()`. Rebuilding the tap is `start()`'s job, so a
+    /// change takes effect on the next start — which the pause switch and the
+    /// menu-coach switch both trigger.
+    public var watchesMouse: Bool = false
+
     public init(permission: PermissionChecking, appContext: AppContextProviding) {
         self.permission = permission
         self.appContext = appContext
@@ -45,6 +51,23 @@ public final class KeyboardMonitor: KeyEventSource {
     }
 
     // MARK: - KeyEventSource
+
+    /// The events the tap listens for.
+    ///
+    /// Pure, and separate from `start()`, because the one thing worth testing
+    /// here is what the tap asks for when the menu coach is off — and building
+    /// a tap is the one thing a test cannot do cheaply or undo afterwards.
+    static func eventMask(watchesMouse: Bool) -> CGEventMask {
+        // The mouse half rides along in the same tap only while the menu
+        // coach is on. Adding an event type to the mask costs nothing when
+        // it is off — verified by probe: a tap's permission requirements
+        // are a property of the tap, not of which types it asks for.
+        var mask = CGEventMask(1 << CGEventType.keyDown.rawValue)
+        if watchesMouse {
+            mask |= 1 << CGEventType.leftMouseDown.rawValue
+        }
+        return mask
+    }
 
     public func start() -> TapStartResult {
         stop()
@@ -58,6 +81,7 @@ public final class KeyboardMonitor: KeyEventSource {
         self.exitSemaphore = exitSem
         stateLock.unlock()
 
+        let mask = Self.eventMask(watchesMouse: watchesMouse)
         let thread = Thread { [weak self] in
             defer { exitSem.signal() }
             guard let self else {
@@ -66,7 +90,6 @@ public final class KeyboardMonitor: KeyEventSource {
                 return
             }
 
-            let mask = CGEventMask(1 << CGEventType.keyDown.rawValue)
             guard let tap = CGEvent.tapCreate(
                 tap: .cgSessionEventTap,
                 place: .headInsertEventTap,
@@ -104,10 +127,14 @@ public final class KeyboardMonitor: KeyEventSource {
             CFRunLoopRemoveSource(runLoop, source, .commonModes)
             CGEvent.tapEnable(tap: tap, enable: false)
             CFMachPortInvalidate(tap)
+            // Only clear what is still ours: if a slow teardown overlaps a
+            // restart, the fields already belong to the new tap.
             self.stateLock.lock()
-            self.tap = nil
-            self.loopSource = nil
-            self.runLoop = nil
+            if self.tap === tap {
+                self.tap = nil
+                self.loopSource = nil
+                self.runLoop = nil
+            }
             self.stateLock.unlock()
         }
         thread.name = "lm.eventtap"
@@ -120,8 +147,24 @@ public final class KeyboardMonitor: KeyEventSource {
         thread.start()
         self.thread = thread
 
-        boot.wait()
+        // Bounded: tapCreate talks to the TCC daemon, which can stall right
+        // after a grant or revoke, and this wait is on the main thread.
+        guard boot.wait(timeout: .now() + 3) == .success else {
+            return .failed("event tap did not start in time")
+        }
         return box.load()
+    }
+
+    /// The tap exists and the system still has it enabled. A tap the system
+    /// disabled (timeout, user input) and could not be re-enabled, or one
+    /// invalidated when Input Monitoring was revoked, answers false — the
+    /// cue for the owner to rebuild it.
+    public var isAlive: Bool {
+        stateLock.lock()
+        let tap = tap
+        stateLock.unlock()
+        guard let tap, CFMachPortIsValid(tap) else { return false }
+        return CGEvent.tapIsEnabled(tap: tap)
     }
 
     public func stop() {
@@ -160,7 +203,10 @@ public final class KeyboardMonitor: KeyEventSource {
         guard let userInfo else { return Unmanaged.passUnretained(event) }
         let monitor = Unmanaged<KeyboardMonitor>.fromOpaque(userInfo).takeUnretainedValue()
 
-        if type == .tapDisabledByTimeout {
+        // Both ways the system switches a tap off: re-enable at once. If that
+        // does not take (permission gone), `isAlive` reports it and the owner
+        // rebuilds the tap.
+        if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
             monitor.stateLock.lock()
             let tap = monitor.tap
             monitor.stateLock.unlock()
@@ -168,13 +214,27 @@ public final class KeyboardMonitor: KeyEventSource {
             return Unmanaged.passUnretained(event)
         }
 
+        // A password sheet sets secure input system-wide; while it is up,
+        // LessMouse observes nothing at all rather than "everything except the
+        // characters" — and that now covers the mouse half too. Checked here
+        // rather than inside the normalizer so the conversion stays pure and
+        // the tests stay deterministic on any machine.
+        if IsSecureEventInputEnabled() {
+            return Unmanaged.passUnretained(event)
+        }
+
+        // The menu coach's door. Only the point is taken here; everything
+        // else — hit-testing, reading a menu — happens on main, because this
+        // callback must never block.
+        if type == .leftMouseDown {
+            monitor.onMenuClick?(MenuClick(
+                point: event.location,
+                application: monitor.appContext.currentApp(),
+                pid: monitor.appContext.currentPID()))
+            return Unmanaged.passUnretained(event)
+        }
+
         guard type == .keyDown,
-              // A password sheet sets secure input system-wide; while it is
-              // up, LessMouse observes nothing at all rather than
-              // "everything except the characters". Checked here rather
-              // than inside the normalizer so the conversion stays pure and
-              // the tests stay deterministic on any machine.
-              !IsSecureEventInputEnabled(),
               let keyEvent = CGEventNormalizer.keyEvent(
                 from: event,
                 timestamp: KeyboardMonitor.monotonicNow(),

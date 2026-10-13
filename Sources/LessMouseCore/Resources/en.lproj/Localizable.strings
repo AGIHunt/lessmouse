@@ -29,6 +29,8 @@
 "today.patterns.hint" = "Bursts a shortcut could have replaced";
 "today.combos" = "Distinct shortcuts";
 "today.combos.hint" = "Different ⌘/⌥/⌃ combinations used today";
+"today.menuCommands" = "Menu commands";
+"today.menuCommands.hint" = "Menu commands you chose with the mouse today";
 
 "permission.body" = "LessMouse needs Input Monitoring permission to count your keyboard patterns (listen-only — it cannot inject keystrokes). It records only shortcut combinations and navigation-key counts — never the text you type.";
 "permission.onlyRecords" = "Only counts like:";
@@ -74,6 +76,13 @@
 "rule.emacsKeys.body" = "Every Mac text field understands Emacs: Control+A to line start, Control+E to line end, Control+P / Control+N up and down a line. They work where arrows are awkward, and they're older than every app you use.";
 "rule.emacsKeys.summary" = "%ld arrow-crawls today";
 
+/* The one card generated at runtime, from the user's own menus — see
+   MenuRuleFactory. Its title and body are the same for every command; the
+   summary names the shortcut and today's count. */
+"rule.menuClick.title" = "Menu commands have shortcuts too";
+"rule.menuClick.body" = "Every menu you open already knows its shortcuts — they are printed right beside the commands, and nobody ever points them out. Menus are for finding out a command exists; once you know it, the keyboard is faster and your hand never has to leave where it is.";
+"rule.menuClick.summary" = "You clicked %@ in the menu %ld times today";
+
 /* Inbox / detail / celebration */
 "inbox.title" = "Suggestions";
 "inbox.unread" = "%ld new";
@@ -97,6 +106,11 @@
 "settings.tracking" = "Tracking";
 "settings.pauseTracking" = "Pause tracking";
 "settings.pauseTracking.hint" = "Stops the keyboard listener completely — nothing is watched at all.";
+"settings.menuCoach" = "Coach menu commands too";
+"settings.menuCoach.hint" = "Off by default. Learn the shortcut printed beside a menu command you keep choosing with the mouse — reads the shape of a menu, never the words in it. Needs Accessibility; while off, LessMouse neither watches the mouse nor reads any menu.";
+"settings.menuCoach.needsAccess" = "Accessibility needed";
+"settings.menuCoach.needsAccess.hint" = "LessMouse asks for this only here, never on its own. Without it the coach stays dormant — the keyboard half of LessMouse is unaffected.";
+"settings.menuCoach.grant" = "Open System Settings";
 "settings.startup" = "Startup";
 "settings.launchAtLogin" = "Launch at login";
 "settings.launchAtLogin.hint" = "Live in the menu bar from the moment you log in.";
@@ -112,4 +126,8 @@
 "settings.eraseAll.confirm" = "Tap confirm to erase everything. The old file is archived on disk.";
 "settings.privacyNote" = "All data stays on this Mac. LessMouse has no network code at all — the repo is the proof.";
 
-
+/* Pop-up notices (NoticePresenter): a short toast under the menu bar icon. */
+"notice.new.title" = "New suggestion";
+"notice.adopted.title" = "You've got %@";
+"settings.notices" = "Pop-up notices";
+"settings.notices.hint" = "A short animated note under the menu bar icon when a new suggestion arrives or one is adopted.";

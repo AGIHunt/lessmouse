@@ -71,7 +71,11 @@ public enum KeyWhitelist {
         kVK_End: SafeKey(token: "end", isNavigation: true, displaySymbol: "↘"),
         kVK_PageUp: SafeKey(token: "pageup", isNavigation: true, displaySymbol: "⇞"),
         kVK_PageDown: SafeKey(token: "pagedown", isNavigation: true, displaySymbol: "⇟"),
-        kVK_Escape: SafeKey(token: "esc", isNavigation: true, displaySymbol: "esc"),
+        // "⎋" rather than "esc": this is the *display* symbol, and it is what
+        // the menu itself prints next to the command — ⌥⌘⎋ is what the user
+        // sees, so ⌥⌘esc on a card does not match what they are looking for.
+        // The storage token stays "esc"; nothing on disk changes.
+        kVK_Escape: SafeKey(token: "esc", isNavigation: true, displaySymbol: "⎋"),
         kVK_Tab: SafeKey(token: "tab", isNavigation: true, displaySymbol: "⇥"),
         kVK_F1: SafeKey(token: "f1", isNavigation: true, displaySymbol: "F1"),
         kVK_F2: SafeKey(token: "f2", isNavigation: true, displaySymbol: "F2"),

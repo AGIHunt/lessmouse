@@ -13,13 +13,20 @@ import Foundation
 ///   again. Coaching that outpaces patience trains the reflex of dismissing.
 public final class SuggestionEngine {
     private let rules: [SuggestionRule]
+    /// Cards that can only exist at runtime, resolved from the signature they
+    /// teach. The book is fixed at launch; the menu coach's cards come from
+    /// whatever the user's own apps expose, so there is nothing to write down
+    /// ahead of time. See MenuRuleFactory.
+    private let dynamicRuleFor: (String) -> SuggestionRule?
     private let calendar: Calendar
     private let now: () -> Date
 
     public init(rules: [SuggestionRule],
+                dynamicRuleFor: @escaping (String) -> SuggestionRule? = { _ in nil },
                 calendar: Calendar = .current,
                 now: @escaping () -> Date = Date.init) {
         self.rules = rules
+        self.dynamicRuleFor = dynamicRuleFor
         self.calendar = calendar
         self.now = now
     }
@@ -29,7 +36,7 @@ public final class SuggestionEngine {
     public func evaluate(_ context: EngineContext,
                          states: inout [String: SuggestionState]) -> [SuggestionChange] {
         var changes: [SuggestionChange] = []
-        for rule in rules where isTriggered(rule, context: context) {
+        for rule in rules(for: context) where isTriggered(rule, context: context) {
             let status = states[rule.id]?.status ?? .dormant
             switch status {
             case .dismissed, .adopted:
@@ -62,6 +69,13 @@ public final class SuggestionEngine {
         return changes
     }
 
+    /// The book for one evaluation: the fixed cards, then one card per menu
+    /// command seen today. The dynamic half is built from the context rather
+    /// than stored, so an app nobody has used yet contributes nothing.
+    private func rules(for context: EngineContext) -> [SuggestionRule] {
+        rules + context.menuClicksToday.keys.compactMap(dynamicRuleFor)
+    }
+
     private func isTriggered(_ rule: SuggestionRule, context: EngineContext) -> Bool {
         switch rule.trigger {
         case .patternBursts(let id, let dailyMinimum):
@@ -88,6 +102,14 @@ public final class SuggestionEngine {
             guard volume >= dailyMinimum else { return false }
             let viaShortcut = context.comboCountsToday[signature] ?? 0
             return Double(viaShortcut) < maxShare * Double(volume)
+
+        case .menuCommandClicks(let signature, let dailyMinimum, let maxKeyboardShare):
+            let clicks = context.menuClicksToday[signature] ?? 0
+            guard clicks >= dailyMinimum else { return false }
+            // Pressing the shortcut for most of these is already the habit the
+            // card is trying to teach.
+            let presses = context.comboCountsToday[signature] ?? 0
+            return Double(presses) <= maxKeyboardShare * Double(clicks)
         }
     }
 
@@ -125,7 +147,11 @@ public final class SuggestionEngine {
     public func onComboObserved(signature: String,
                                 todayCount: Int,
                                 states: inout [String: SuggestionState]) -> String? {
-        for rule in rules where rule.watchForAdoption.contains(signature) {
+        var watched = rules
+        // A menu card is resolved from the signature alone, so adoption of a
+        // card that is not in the book still lands.
+        if let dynamic = dynamicRuleFor(signature) { watched.append(dynamic) }
+        for rule in watched where rule.watchForAdoption.contains(signature) {
             guard let state = states[rule.id],
                   state.status == .unread || state.status == .read else { continue }
             let baseline = state.adoptionBaseline[signature] ?? 0

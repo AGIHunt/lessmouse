@@ -16,6 +16,9 @@ public final class StatsStore {
     private var root = StatsRoot()
     private var suggestionStates: [String: SuggestionState] = [:]
     private var dirty = false
+    /// Bumped on every mutation, so a flush can tell whether what it wrote is
+    /// still everything there is.
+    private var generation = 0
     private var lastFlush: Date?
 
     private let flushInterval: TimeInterval = 30
@@ -87,6 +90,7 @@ public final class StatsStore {
                 .apps[key, default: AppStats()]
                 .combos[signature, default: 0] += 1
             dirty = true
+            generation &+= 1
         }
     }
 
@@ -100,6 +104,7 @@ public final class StatsStore {
                 .apps[key, default: AppStats()]
                 .patterns[patternID, default: 0] += 1
             dirty = true
+            generation &+= 1
         }
     }
 
@@ -113,6 +118,24 @@ public final class StatsStore {
                 .apps[key, default: AppStats()]
                 .activations += 1
             dirty = true
+            generation &+= 1
+        }
+    }
+
+    /// Count one mouse click on a menu command that prints `signature`
+    /// (same day-stamping rule as above).
+    ///
+    /// The signature, never the command's title: "clicked a Save item three
+    /// times" is the habit, and the title would be the user's data.
+    public func recordMenuCommand(_ signature: String, app: String?) {
+        let key = app ?? ""
+        let dayKey = Self.dayKey(for: now(), calendar: calendar)
+        queue.async { [self] in
+            root.days[dayKey, default: DayStats()]
+                .apps[key, default: AppStats()]
+                .menuCommands[signature, default: 0] += 1
+            dirty = true
+            generation &+= 1
         }
     }
 
@@ -138,6 +161,7 @@ public final class StatsStore {
             }
             var combos: [String: Int] = [:]
             var patterns: [String: Int] = [:]
+            var menuCommands: [String: Int] = [:]
             for app in day.apps.values {
                 for (signature, count) in app.combos {
                     combos[signature, default: 0] += count
@@ -145,8 +169,12 @@ public final class StatsStore {
                 for (pattern, count) in app.patterns {
                     patterns[pattern, default: 0] += count
                 }
+                for (signature, count) in app.menuCommands {
+                    menuCommands[signature, default: 0] += count
+                }
             }
-            return DaySnapshot(dayKey: dayKey, combos: combos, patterns: patterns)
+            return DaySnapshot(dayKey: dayKey, combos: combos, patterns: patterns,
+                               menuCommands: menuCommands)
         }
     }
 
@@ -164,7 +192,24 @@ public final class StatsStore {
         comboTotals(dayLimit: dayLimit)[signature] ?? 0
     }
 
+    /// Total mouse clicks on menu commands bearing `signature` across
+    /// `dayLimit` days (nil = all time) — the mouse half of the same
+    /// comparison `comboCount` answers for the keyboard.
+    public func menuCommandCount(_ signature: String, dayLimit: Int? = nil) -> Int {
+        menuCommandTotals(dayLimit: dayLimit)[signature] ?? 0
+    }
+
     private func comboTotals(dayLimit: Int?) -> [String: Int] {
+        totals(dayLimit: dayLimit) { $0.combos }
+    }
+
+    private func menuCommandTotals(dayLimit: Int?) -> [String: Int] {
+        totals(dayLimit: dayLimit) { $0.menuCommands }
+    }
+
+    /// Sum one per-app dictionary across the window, keyed by signature.
+    private func totals(dayLimit: Int?,
+                        _ pick: (AppStats) -> [String: Int]) -> [String: Int] {
         queue.sync { [self] in
             var cutoff: String?
             if let dayLimit,
@@ -175,7 +220,7 @@ public final class StatsStore {
             for (dayKey, day) in root.days {
                 if let cutoff, dayKey < cutoff { continue }
                 for app in day.apps.values {
-                    for (signature, count) in app.combos {
+                    for (signature, count) in pick(app) {
                         totals[signature, default: 0] += count
                     }
                 }
@@ -188,7 +233,9 @@ public final class StatsStore {
     public func daysObserved() -> Int {
         queue.sync { [self] in
             root.days.values.filter { day in
-                day.apps.values.contains { !$0.combos.isEmpty || !$0.patterns.isEmpty }
+                day.apps.values.contains {
+                    !$0.combos.isEmpty || !$0.patterns.isEmpty || !$0.menuCommands.isEmpty
+                }
             }.count
         }
     }
@@ -241,16 +288,20 @@ public final class StatsStore {
     /// Unconditional write. Atomic, with file protection, so a crash mid-write
     /// can never leave a half file.
     public func flush() {
-        let data: Data? = queue.sync { [self] in
+        let snapshot: (data: Data, generation: Int)? = queue.sync { [self] in
             lastFlush = now()
-            guard dirty else { return nil }
-            return try? Self.encoder.encode(root)
+            guard dirty, let data = try? Self.encoder.encode(root) else { return nil }
+            return (data, generation)
         }
-        guard let data else { return }
+        guard let snapshot else { return }
         do {
-            try data.write(to: storageURL,
-                           options: [.atomic, .completeFileProtection])
-            queue.async { [self] in dirty = false }
+            try snapshot.data.write(to: storageURL,
+                                    options: [.atomic, .completeFileProtection])
+            // Increments that landed between the encode and here are not in
+            // the file; leave them dirty for the next tick.
+            queue.async { [self] in
+                if generation == snapshot.generation { dirty = false }
+            }
         } catch {
             // Losing today's counts to a full disk is bad; losing the app is
             // worse. The dirty flag stays set and the next tick tries again.

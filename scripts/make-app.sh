@@ -27,6 +27,10 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 echo "▸ bundle"
 cp "$BINARY" "$APP/Contents/MacOS/LessMouse"
+# SwiftPM puts the target's processed resources (strings, icons) in a separate
+# bundle next to the binary. It must ride inside the .app: without it the first
+# `Bundle.module` access aborts the app on launch.
+cp -R "$(dirname "$BINARY")/LessMouse_LessMouseCore.bundle" "$APP/Contents/Resources/"
 sed -e "s/\$(VERSION)/$VERSION/" -e "s/\$(BUILD)/$BUILD/" -e "s/\$(BUNDLE_ID)/$BUNDLE_ID/" \
     scripts/app-template/Info.plist > "$APP/Contents/Info.plist"
 

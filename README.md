@@ -2,8 +2,9 @@
 
 > Your keyboard coach on the menu bar. It watches how you type, spots the
 > slow habits — five backspaces to fix one word, twenty arrows to cross a
-> paragraph — and shows you the shortcut that replaces them. When you start
-> using it, LessMouse notices, and celebrates.
+> paragraph — and shows you the shortcut that replaces them. It also notices
+> when you reach for the mouse to pick a menu command that has a shortcut of
+> its own. When you start using it, LessMouse notices, and celebrates.
 
 **[简体中文文档](README.zh-CN.md)**
 
@@ -25,16 +26,32 @@ shortcuts doesn't build habits; a coach that sees your actual habits does.
 4. The next time you press the taught shortcut, the card flips to **adopted**
    and the banner says so. Progress lands on the stats page.
 
+The mouse half works the same way. Every menu command you keep reaching for
+with the mouse already has its shortcut printed beside it — LessMouse reads
+the *shape* of a menu (where the item sits, what shortcut it prints, never
+the words in it) and, once you've picked the same command three times in a
+day, teaches you that shortcut. Press it, and the same adoption detection
+fires.
+
 ![Shortcut card with keycaps](docs/screenshots/detail-delete-by-word.png)
 ![The Emacs-keys card](docs/screenshots/detail-emacs-keys.png)
 
 ## Features
 
 - **Today's ledger** — key events counted, slow patterns detected, distinct
-  shortcuts used, refreshed as you type.
+  shortcuts used, menu commands picked with the mouse, refreshed as you type.
 - **A coaching inbox** — cards appear only when a habit is real (thresholds
   are "unmistakable", not "technically possible"); unread ones carry the
   green dot and a *new* pill.
+- **A menu coach** — three mouse-clicks on a command that prints a shortcut,
+  and you get a card for it. No list of apps, no list of menus: every app
+  already knows its own shortcuts, and LessMouse asks the app. Off until you
+  turn it on in settings.
+- **Pop-up notices** — a short animated note slides down under the menu bar
+  icon when a new suggestion arrives (its glyph ripples, the keycaps to learn
+  sit beside it) and when you adopt one (a check pops in with a small burst).
+  No permission, never takes focus; click it to open the panel. Honours
+  Reduce Motion; switch it off in Settings.
 - **Adoption detection** — press a taught shortcut after reading its card and
   the celebration banner fires, once, ever. The stats page tracks how many of
   the coached shortcuts you've taken up.
@@ -56,12 +73,21 @@ shortcuts doesn't build habits; a coach that sees your actual habits does.
 
 **LessMouse never records what you type.** The event filter is ~20 lines with
 a test that sweeps every keycode × modifier combination to keep it that way.
+**It never records what your menus say either** — menu titles are the one
+attribute the menu coach does not read, and its data type has no field for
+them. The coach reads seven attributes per menu item (position, size, role,
+enabled, and the shortcut's keycode, character and modifier mask); a title is
+not among them, so a filename or an account name sitting in a menu has no path
+into LessMouse.
 
 What is counted, nothing else:
 
 - **Shortcuts** — keystrokes with ⌘/⌥/⌃ held (`cmd+c`, `opt+backspace`)
 - **Navigation keys** — backspace, arrows, Home/End, PageUp/Down, Esc, Tab, F-keys
 - **Detected slow patterns** — "backspace-burst fired 4 times today"
+- **Menu commands** — how many times today you picked, with the mouse, a
+  command whose shortcut is ⌘S / ⌥⇧O / … (`menuCommands: { "cmd+s": 3 }`).
+  Not the command's name, not where you clicked.
 
 Three defenses deep:
 
@@ -71,11 +97,27 @@ Three defenses deep:
 | Secure input guard | While a password sheet has focus, LessMouse observes nothing at all. |
 | Exclusions | Any app can be excluded entirely; excluded apps aren't even watched. |
 
+The signature filter is the *same* filter the menu coach applies to every shortcut
+it reads out of a menu: a gesture LessMouse would never count can't be taught,
+so a card always names something a keypress can produce — and a bare letter
+never reaches stats.json from either half.
+
 All data lives in one human-readable file —
 `~/Library/Application Support/LessMouse/stats.json` — opened from the stats
 page or by hand, deleted from settings. The codebase has **zero network code
 and zero third-party dependencies**; audit it, that's the point of open
 source.
+
+### Two permissions, and one of them is optional
+
+| Permission | For | If you don't grant it |
+|---|---|---|
+| **Input Monitoring** | the keyboard half — everything in the original app | LessMouse shows its permission page and does nothing |
+| **Accessibility** | the menu coach only | the coach stays dormant; the keyboard half works exactly as before |
+
+LessMouse never asks for Accessibility on its own — it only checks whether
+it's already granted, and if not, Settings shows one row explaining the coach
+is asleep with a button that opens the pane. Nothing in the app prompts.
 
 ## Install
 
@@ -102,19 +144,32 @@ LessMouse entry in Input Monitoring and add the new one. Maintainers signing
 with a stable identity (`CODESIGN_IDENTITY=… scripts/make-app.sh`) don't
 re-grant.
 
+**Optional — Accessibility, for the menu coach only.** The coach reads menus
+through the accessibility API, and LessMouse only ever *checks* that
+permission — it never asks. It also ships off: grant Accessibility (System
+Settings → Privacy & Security → Accessibility) *and* turn it on in Settings →
+*Coach menu commands too*, and it wakes up; skip either and everything else
+works exactly as before.
+
 ## Build & develop
 
 ```bash
 swift build       # build
-swift test        # 60 tests: privacy sweeps, detector, engine, layout
+swift test        # 132 tests: privacy sweeps, detector, engine, menu coach, layout
 swift run LessMouse  # run from CLI (see note)
 ```
 
 macOS 14+, Swift 5.9+, zero dependencies. `swift run` works for development,
 but TCC attributes the permission to your terminal — for the real experience
-build the app (`scripts/make-app.sh`) and launch that.
+build the app (`scripts/make-app.sh`) and launch that. (Same for the menu
+coach: `swift run` inherits your terminal's Accessibility grant, if it has
+one.)
 
 ## The coaching book (v1)
+
+The last row is the odd one: it isn't written down anywhere in the code. Every
+app already knows its own shortcuts, so LessMouse asks the app — see
+[docs/menu-coach.md](docs/menu-coach.md) for how, and what it costs.
 
 | You keep… | LessMouse teaches |
 |---|---|
@@ -127,6 +182,7 @@ build the app (`scripts/make-app.sh`) and launch that.
 | Moving by arrow alone | ⌃A/⌃E/⌃P/⌃N — the Emacs keys every Mac text field knows |
 | Switching apps by mouse | ⌘⇥ — when app switches are many but ⌘Tab's share of them is tiny |
 | Switching browser tabs by mouse | ⌃⇥ / ⇧⌃⇥ — after days of browser use without them |
+| Picking menu commands with the mouse | whatever the menu prints beside the command *(discovered at runtime — three clicks in a day, any app)* |
 
 Cards cool down when read but not adopted (3–5 days), disappear forever when
 dismissed, and celebrate exactly once when adopted.
@@ -138,9 +194,28 @@ Ice, Vanilla…), new items often start hidden — set LessMouse to *Always
 Shown* in its settings. On notched MacBooks, a crowded bar collapses items
 into the hidden zone past the notch. LessMouse itself never removes its icon.
 
-**I granted Accessibility and nothing happened.** That's the wrong pane —
-the app needs **Input Monitoring** (see Install). The permission page's
-button opens the right one.
+**I granted Accessibility and nothing happened.** For the keyboard half,
+that's the wrong pane — the app needs **Input Monitoring** (see Install). The
+permission page's button opens the right one. Accessibility is only for the
+menu coach; without it the coach sleeps and Settings says so.
+
+**Why is the menu coach asleep?** Two reasons, in order: it ships off — turn it on in Settings → *Coach menu commands too* first; and it needs Accessibility, which LessMouse checks but never asks for. To grant it: Settings → *Coach menu commands too* → *Open System Settings* → Privacy & Security → **Accessibility**, add LessMouse, and quit and reopen it once. The row disappears by itself the moment the grant lands.
+
+**Why isn't my favourite menu command coached?** It has to print a shortcut
+(Quit and Preferences don't), it has to be picked three times in a day, and
+you have to not already be pressing that shortcut for two of those three. If
+you open the menu by pressing and dragging, the release that picks the
+command isn't seen — only mouse presses are. There's also a cap of three
+menu cards per day, so the ones you click most come first. A greyed-out
+command doesn't count either: it can't run, so clicking it used nothing.
+Shortcuts on the space bar and Return aren't taught — those two keys aren't in
+the table the keyboard half uses either. Nor are the ones you can only type
+with ⌥ or ⌃ held (å, ¡…): a card has to name a key you can actually press.
+Nor is anything carrying the globe key (🌐): Finder's 显示 › 进入全屏幕 is 🌐F
+and 窗口 › 居中 is 🌐⌃C. Accessibility reports a modifier bit the SDK never
+documents, and LessMouse's keyboard half never reads it — so pressing 🌐⌃C and
+pressing ⌃C look identical to it, and a card for either could only be confirmed
+by the wrong keypress. Those are left untaught on purpose.
 
 **Why does `opt+a` show up in my stats?** On some layouts ⌥+letter types a
 character (å, ∆…). LessMouse counts the *combination* ("opt+a: 3") — an

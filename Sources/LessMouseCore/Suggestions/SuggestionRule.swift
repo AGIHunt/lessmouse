@@ -1,10 +1,10 @@
 import Foundation
 
-/// What wakes a rule up. Four shapes cover the book:
-/// a burst pattern crossing its daily line, a plain usage total
-/// (Home/End pressed N times today), "the behavior happened while the
-/// shortcut never did" (browsers used, ⌃Tab never pressed), and a
-/// behavior-vs-keyboard ratio (apps switched 20×, ⌘Tab used twice).
+/// What wakes a rule up. The book's shapes: a burst pattern crossing its
+/// daily line, a plain usage total (Home/End pressed N times today), "the
+/// behavior happened while the shortcut never did" (browsers used, ⌃Tab never
+/// pressed), a behavior-vs-keyboard ratio (apps switched 20×, ⌘Tab used
+/// twice), and a menu command chosen with the mouse N times today.
 public enum RuleTrigger: Hashable {
     case patternBursts(id: String, dailyMinimum: Int)
     case comboUsage(signatures: [String], dailyMinimum: Int)
@@ -14,6 +14,11 @@ public enum RuleTrigger: Hashable {
     /// The activity happens at volume but the shortcut covers too little of
     /// it — e.g. app switching by mouse with ⌘Tab known but idle.
     case activityShare(signature: String, activity: ActivityKind, dailyMinimum: Int, maxShare: Double)
+    /// A menu command was chosen with the mouse `dailyMinimum` times today
+    /// while its shortcut covered at most `maxKeyboardShare` of them. The
+    /// only trigger whose signature is discovered at runtime rather than
+    /// written down — see MenuRuleFactory.
+    case menuCommandClicks(signature: String, dailyMinimum: Int, maxKeyboardShare: Double)
 }
 
 /// The "behavior" a trigger can watch. Deliberately coarse: browser use
@@ -133,6 +138,9 @@ public struct EngineContext: Equatable {
     public var browserActiveDays: Int
     /// Distinct days where 2+ apps (besides LessMouse) came to the front.
     public var multiAppActiveDays: Int
+    /// Mouse clicks on menu commands that print a shortcut, by signature —
+    /// today's half of the keyboard-vs-mouse comparison.
+    public var menuClicksToday: [String: Int]
 
     public init(dayKey: String,
                 patternHitsToday: [String: Int] = [:],
@@ -140,7 +148,8 @@ public struct EngineContext: Equatable {
                 comboCountsAllTime: [String: Int] = [:],
                 appSwitchesToday: Int = 0,
                 browserActiveDays: Int = 0,
-                multiAppActiveDays: Int = 0) {
+                multiAppActiveDays: Int = 0,
+                menuClicksToday: [String: Int] = [:]) {
         self.dayKey = dayKey
         self.patternHitsToday = patternHitsToday
         self.comboCountsToday = comboCountsToday
@@ -148,5 +157,6 @@ public struct EngineContext: Equatable {
         self.appSwitchesToday = appSwitchesToday
         self.browserActiveDays = browserActiveDays
         self.multiAppActiveDays = multiAppActiveDays
+        self.menuClicksToday = menuClicksToday
     }
 }

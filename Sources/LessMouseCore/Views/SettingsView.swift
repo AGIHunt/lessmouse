@@ -56,8 +56,86 @@ struct SettingsView: View {
                             .labelsHidden()
                     }
                 )
+                RowDivider()
+                menuCoachRow
+                // Only while the coach is on and cannot read anything: the
+                // one place in the app that mentions Accessibility at all.
+                if state.settings.isMenuCoachEnabled && !state.isMenuCoachAvailable {
+                    RowDivider()
+                    accessibilityRow
+                }
+                RowDivider()
+                noticesRow
             }
         }
+    }
+
+    /// Pop-up notices for arrivals and adoptions.
+    private var noticesRow: some View {
+        ModuleRow(
+            title: Loc.t("settings.notices"),
+            subtitle: Loc.t("settings.notices.hint"),
+            subtitleLines: 2,
+            glyph: {
+                GlyphBadge(state.settings.showsNotices ? .on : .off) {
+                    Image(systemName: "bell.badge")
+                        .font(.system(size: 12, weight: .medium))
+                }
+            },
+            trailing: {
+                Toggle("", isOn: Binding(
+                    get: { state.settings.showsNotices },
+                    set: { state.settings.showsNotices = $0 }))
+                        .toggleStyle(.switch)
+                        .controlSize(.small)
+                        .labelsHidden()
+            }
+        )
+    }
+
+    /// The menu coach's own switch, with the accessibility door next to it.
+    private var menuCoachRow: some View {
+        ModuleRow(
+            title: Loc.t("settings.menuCoach"),
+            subtitle: Loc.t("settings.menuCoach.hint"),
+            subtitleLines: 2,
+            glyph: {
+                GlyphBadge(state.settings.isMenuCoachEnabled ? .on : .off) {
+                    Image(systemName: "cursorarrow.click")
+                        .font(.system(size: 12, weight: .medium))
+                }
+            },
+            trailing: {
+                Toggle("", isOn: Binding(
+                    get: { state.settings.isMenuCoachEnabled },
+                    set: { state.settings.isMenuCoachEnabled = $0 }))
+                        .toggleStyle(.switch)
+                        .controlSize(.small)
+                        .labelsHidden()
+            }
+        )
+    }
+
+    /// Why the coach is quiet, and the door out. A door, not a knock: nothing
+    /// here prompts, it only opens the pane.
+    private var accessibilityRow: some View {
+        ModuleRow(
+            title: Loc.t("settings.menuCoach.needsAccess"),
+            subtitle: Loc.t("settings.menuCoach.needsAccess.hint"),
+            subtitleLines: 3,
+            glyph: {
+                GlyphBadge(.off) {
+                    Image(systemName: "lock.rectangle")
+                        .font(.system(size: 12, weight: .medium))
+                }
+            },
+            trailing: {
+                Button(Loc.t("settings.menuCoach.grant")) {
+                    state.openAccessibilitySettings()
+                }
+                .buttonStyle(QuietButtonStyle())
+            }
+        )
     }
 
     private var loginModule: some View {

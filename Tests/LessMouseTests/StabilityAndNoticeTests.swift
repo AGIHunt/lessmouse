@@ -334,8 +334,16 @@ struct StabilityAndNoticeTests {
     }
 
     private func table(_ language: String) throws -> [String: String] {
-        let bundle = try #require(Bundle.module.path(forResource: language, ofType: "lproj").flatMap(Bundle.init(path:)))
-        let url = try #require(bundle.url(forResource: "Localizable", withExtension: "strings"))
+        // Found by walking the bundle rather than asking for "<lang>.lproj" as
+        // a resource: SwiftPM lays the bundle out flat on some toolchains and
+        // as Contents/Resources on others, and the lproj lookup only works on
+        // the latter (CI's macos-15 runner has the flat one).
+        let wanted = "\(language).lproj/Localizable.strings"
+        let root = Bundle.module.bundleURL
+        let walker = FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil)
+        let url = try #require(
+            (walker?.allObjects as? [URL])?.first { $0.path.hasSuffix(wanted) },
+            "no \(wanted) under \(root.path)")
         return try #require(NSDictionary(contentsOf: url) as? [String: String])
     }
 

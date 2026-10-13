@@ -366,6 +366,18 @@ struct MenuCoachPipelineTests {
             now: { clock.date })
     }
 
+    /// Menu clicks are resolved off the main actor, so how long that takes
+    /// depends on the machine; a fixed sleep that fits a laptop is too short
+    /// on a CI runner. Wait for the outcome instead, with a generous cap.
+    private func waitUntil(_ condition: @autoclosure @MainActor () -> Bool,
+                           timeout: TimeInterval = 3) async {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if condition() { return }
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+    }
+
     /// One "opened the File menu, picked Save" gesture.
     private func clickSave(_ state: AppState, app: String? = "com.apple.TextEdit") {
         state.ingestMenuClick(MenuClick(point: CGPoint(x: 20, y: 10), application: app, pid: 42))
@@ -379,12 +391,13 @@ struct MenuCoachPipelineTests {
 
         // Two gestures: not yet a habit.
         clickSave(state); clickSave(state)
-        try? await Task.sleep(for: .milliseconds(120))
+        await waitUntil(state.today.totalMenuCommands == 2)
+        try? await Task.sleep(for: .milliseconds(50))
         #expect(state.unreadCount == 0)
 
         // The third is.
         clickSave(state)
-        try? await Task.sleep(for: .milliseconds(120))
+        await waitUntil(state.unreadCount == 1)
 
         let cardID = MenuRuleFactory.id(for: "cmd+s")
         #expect(state.unreadCount == 1)
@@ -409,8 +422,8 @@ struct MenuCoachPipelineTests {
         let state = makeState(coachOn(defaults), store: store)
 
         clickSave(state); clickSave(state); clickSave(state)
-        try? await Task.sleep(for: .milliseconds(120))
         let cardID = MenuRuleFactory.id(for: "cmd+s")
+        await waitUntil(state.suggestionStates[cardID]?.status == .unread)
         #expect(state.suggestionStates[cardID]?.status == .unread)
 
         state.ingest(KeyEvent(timestamp: 1, keyCode: 0x01, modifiers: .command,
@@ -431,7 +444,7 @@ struct MenuCoachPipelineTests {
         let (defaults, _) = settingsDomain()
         let state = makeState(coachOn(defaults), store: makeStore())
         clickSave(state); clickSave(state); clickSave(state)
-        try? await Task.sleep(for: .milliseconds(120))
+        await waitUntil(state.rules.contains { $0.id == MenuRuleFactory.id(for: "cmd+s") })
         #expect(state.rules.contains { $0.id == MenuRuleFactory.id(for: "cmd+s") })
 
         state.eraseAllData()
@@ -505,7 +518,7 @@ struct MenuCoachPipelineTests {
         settings.isMenuCoachEnabled = true
         try? await Task.sleep(for: .milliseconds(50))
         clickSave(state); clickSave(state); clickSave(state)
-        try? await Task.sleep(for: .milliseconds(120))
+        await waitUntil(state.today.totalMenuCommands == 3 && state.unreadCount == 1)
         #expect(state.today.totalMenuCommands == 3)
         #expect(state.unreadCount == 1)
     }

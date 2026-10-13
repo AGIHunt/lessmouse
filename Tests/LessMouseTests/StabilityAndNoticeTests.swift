@@ -336,13 +336,13 @@ struct StabilityAndNoticeTests {
     private func table(_ language: String) throws -> [String: String] {
         // Found by walking the bundle rather than asking for "<lang>.lproj" as
         // a resource: SwiftPM lays the bundle out flat on some toolchains and
-        // as Contents/Resources on others, and the lproj lookup only works on
-        // the latter (CI's macos-15 runner has the flat one).
-        let wanted = "\(language).lproj/Localizable.strings"
+        // as Contents/Resources on others, and older ones also lowercase the
+        // folder ("zh-hans.lproj") — CI's macos-15 runner does both.
+        let wanted = "\(language).lproj/Localizable.strings".lowercased()
         let root = Bundle.module.bundleURL
         let walker = FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil)
         let url = try #require(
-            (walker?.allObjects as? [URL])?.first { $0.path.hasSuffix(wanted) },
+            (walker?.allObjects as? [URL])?.first { $0.path.lowercased().hasSuffix(wanted) },
             "no \(wanted) under \(root.path)")
         return try #require(NSDictionary(contentsOf: url) as? [String: String])
     }
